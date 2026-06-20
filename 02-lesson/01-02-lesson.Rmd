@@ -1,0 +1,513 @@
+---
+title: "Introduction to data: 1 - Data Transformation and Summaries"
+output: 
+  learnr::tutorial:
+    progressive: true
+    allow_skip: true
+runtime: shiny_prerendered
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+library(learnr)
+library(tidyverse)
+library(openintro)
+library(emo)
+library(shiny)
+
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+
+tutorial_options(exercise.eval = FALSE)
+
+
+my_reveal_time <- "2026-06-20 15:00:00"  # solution reveal time
+
+
+# Setup for in some exercise chunks ... because each chunk in learnr (shiny app) works independently (not sharing env) 
+hsb2_public <- hsb2 |> 
+  filter(schtyp == "public")
+
+avg_read <- mean(hsb2$read)
+
+numbers<-seq(10,60,10)
+
+df <- read.csv("airquality.csv")
+df_clean <- df |> drop_na()
+
+
+
+
+# Hash generation helpers
+# Should ideally be loaded from the imstutorials package when it exists
+is_server_context <- function(.envir) {
+  # We are in the server context if there are the follow:
+  # * input - input reactive values
+  # * output - shiny output
+  # * session - shiny session
+  #
+  # Check context by examining the class of each of these.
+  # If any is missing then it will be a NULL which will fail.
+  
+  inherits(.envir$input, "reactivevalues") &
+    inherits(.envir$output, "shinyoutput") &
+    inherits(.envir$session, "ShinySession")
+}
+
+check_server_context <- function(.envir) {
+  if (!is_server_context(.envir)) {
+    calling_func <- deparse(sys.calls()[[sys.nframe() - 1]])
+    err <- paste0("Function `", calling_func, "`", " must be called from an Rmd chunk where `context = \"server\"`")
+    stop(err, call. = FALSE)
+  }
+}
+encoder_logic <- function(strip_output = FALSE) {
+  p <- parent.frame()
+  check_server_context(p)
+  # Make this var available within the local context below
+  assign("strip_output", strip_output, envir = p)
+  # Evaluate in parent frame to get input, output, and session
+  local(
+    {
+      encoded_txt <- shiny::eventReactive(
+        input$hash_generate,
+        {
+          # shiny::getDefaultReactiveDomain()$userData$tutorial_state
+          state <- learnr:::get_tutorial_state()
+          shiny::validate(shiny::need(length(state) > 0, "No progress yet."))
+          shiny::validate(shiny::need(nchar(input$name) > 0, "No name entered."))
+          shiny::validate(shiny::need(nchar(input$studentID) > 0, "Please enter your student ID"))
+          user_state <- purrr::map_dfr(state, identity, .id = "label")
+          user_state <- dplyr::group_by(user_state, label, type, correct)
+          user_state <- dplyr::summarize(
+            user_state,
+            answer = list(answer),
+            timestamp = dplyr::first(timestamp),
+            .groups = "drop"
+          )
+          user_state <- dplyr::relocate(user_state, correct, .before = timestamp)
+          user_info <- tibble(
+            label = c("student_name", "student_id"),
+            type = "identifier",
+            answer = as.list(c(input$name, input$studentID)),
+            timestamp = format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z", tz = "UTC")
+          )
+          learnrhash::encode_obj(bind_rows(user_info, user_state))
+        }
+      )
+      output$hash_output <- shiny::renderText(encoded_txt())
+    },
+    envir = p
+  )
+}
+
+hash_encoder_ui <- {
+  shiny::div("If you have completed this tutorial and are happy with all of your", "solutions, please enter your identifying information, then click the button below to generate your hash", textInput("name", "What's your name?"), textInput("studentID", "What is your student ID?"), renderText({
+    input$caption
+  }), )
+}
+
+
+
+
+
+solution_code_card <- function(code, title = "Solution") {
+  tags$div(
+    style = paste(
+      "margin: 1rem 0 1.25rem;",
+      "border: 1px solid #d7e3f3;",
+      "border-left: 5px solid #2f6f9f;",
+      "border-radius: 8px;",
+      "background: #f8fbff;",
+      "box-shadow: 0 2px 8px rgba(31, 45, 61, 0.08);",
+      "overflow: hidden;"
+    ),
+    tags$div(
+      style = paste(
+        "display: flex;",
+        "align-items: center;",
+        "justify-content: space-between;",
+        "gap: 0.75rem;",
+        "padding: 0.7rem 0.9rem;",
+        "background: #eef6ff;",
+        "border-bottom: 1px solid #d7e3f3;"
+      ),
+      tags$strong(
+        title,
+        style = "color: #1f4e79; font-size: 1rem;"
+      ),
+      tags$span(
+        "released",
+        style = paste(
+          "padding: 0.15rem 0.5rem;",
+          "border-radius: 999px;",
+          "background: #ffffff;",
+          "color: #3c6478;",
+          "font-size: 0.78rem;",
+          "font-weight: 600;"
+        )
+      )
+    ),
+    tags$pre(
+      style = paste(
+        "margin: 0;",
+        "padding: 0.9rem 1rem;",
+        "background: #ffffff;",
+        "border: 0;",
+        "border-radius: 0;",
+        "white-space: pre-wrap;",
+        "text-align: left;"
+      ),
+      tags$code(
+        htmltools::HTML(htmltools::htmlEscape(code)),
+        style = paste(
+          "display: block;",
+          "margin: 0;",
+          "padding: 0;",
+          "color: #243447;",
+          "font-size: 0.95rem;",
+          "line-height: 1.45;",
+          "text-align: left;",
+          "text-indent: 0;"
+        )
+      )
+    )
+  )
+}
+
+
+
+timed_solution <- function(output_id, code, title = "Solution",
+                           reveal_time = my_reveal_time,
+                           tz = "America/New_York",
+                           check_every_ms = 1000) {
+  p <- parent.frame()
+  check_server_context(p)
+
+  p$output[[output_id]] <- shiny::renderUI({
+    shiny::invalidateLater(check_every_ms, p$session)
+
+    release_at <- as.POSIXct(reveal_time, tz = tz)
+    if (Sys.time() < release_at) {
+      return(NULL)
+    }
+
+    solution_code_card(code, title)
+  })
+}
+```
+
+
+## Welcome
+
+Hello, and welcome to **Data Transformation and Summaries**!
+
+In this tutorial we will use R to load data, inspect variables, create
+new variables, filter rows, remove missing values, and make contingency
+tables.
+
+Our learning goals are to:
+
+- use `dplyr` verbs such as `select()`, `filter()`, `mutate()`, and
+  `summarise()`;
+- create categorized variables from numerical variables;
+- remove missing values with `filter()` and `drop_na()`;
+- make contingency tables with `group_by()`, `summarise()`, and
+  `pivot_wider()`.
+
+## Packages
+
+This lesson uses three packages:
+
+- **dplyr** for data transformation
+- **readr** for reading data files
+- **tidyr** for reshaping data and removing missing values
+
+```{r load-packages, exercise=TRUE}
+library(dplyr)
+library(readr)
+library(tidyr)
+```
+
+## New York Air Quality Data
+
+The New York air quality data contain daily air quality measurements in
+New York from May to September 1973. The data have 153 observations and
+6 variables.
+
+Each row is one day. The variables include ozone level, solar radiation,
+wind speed, temperature, month, and day.
+
+You can read more about the original data description here:
+<https://stat.ethz.ch/R-manual/R-devel/library/datasets/html/airquality.html>
+
+## Import the Data
+
+The file `airquality.csv` is stored in this lesson folder. We can read
+the file and save it as an object named `df`.
+
+```{r import-airquality, exercise=TRUE}
+df <- read.csv("airquality.csv")
+```
+
+## Inspect the Data
+
+Before analyzing a data set, it is helpful to look at its structure,
+variable names, and first few rows.
+
+```{r inspect-airquality, exercise=TRUE}
+glimpse(df)
+names(df)
+head(df)
+```
+
+## The Pipe Operator
+
+The pipe operator sends the result from one step into the next step.
+You can read it as "then."
+
+`df %>% filter(Month == 5)` means "start with `df`, then select all rows
+where `Month` equals 5."
+
+```{r pipe-filter-example, exercise=TRUE}
+df %>% 
+  filter(Month == 5)
+```
+
+The native R pipe `|>` works similarly.
+
+```{r native-pipe-example, exercise=TRUE}
+df |> 
+  select(Ozone, Wind, Month) |>
+  filter(Month == 5)
+```
+
+## `dplyr` Data Manipulation Functions
+
+Common `dplyr` functions include:
+
+- `filter()` chooses rows based on column values.
+- `slice()` chooses rows based on row location.
+- `arrange()` changes the order of rows.
+- `select()` chooses columns.
+- `rename()` changes column names.
+- `mutate()` changes existing columns or creates new columns.
+- `relocate()` changes the order of columns.
+- `summarise()` collapses rows into summaries.
+
+## Row or Column Checkpoint
+
+Students often mix up `filter()` and `select()`. Use this checkpoint to
+separate the two ideas before writing longer data pipelines.
+
+For each task below, write whether you would use `filter()` or
+`select()`.
+
+```{r filter-select-checkpoint, exercise=TRUE}
+# Keep only days in July:
+# Keep only the Ozone, Temp, and Wind variables:
+# Keep only rows where Wind is greater than 10:
+# Keep only the Month column:
+```
+
+## Creating a New Column
+
+Use `mutate()` to create a new column or modify an existing column.
+
+For example, we can create a temperature category.
+
+```{r mutate-temp-category, exercise=TRUE}
+df2 <- df %>%
+  mutate(Temp_Category = ifelse(Temp > 80, "High", "Moderate"))
+
+head(df2)
+```
+
+## Contingency Table
+
+A contingency table shows counts for combinations of categorical
+variables.
+
+First, we create a categorized ozone variable. Then we count the number
+of days in each combination of `Month` and `Ozone_Level`.
+
+```{r contingency-table-ozone, exercise=TRUE}
+df <- df %>%
+  mutate(Ozone_Level = ifelse(Ozone > median(Ozone, na.rm = TRUE),
+                              "High", "Low"))
+
+contingency_table <- df %>%
+  group_by(Month, Ozone_Level) %>%
+  summarise(Count = n()) %>%
+  pivot_wider(names_from = Ozone_Level, values_from = Count)
+
+print(contingency_table)
+```
+
+## Contingency Table with a Categorized Variable
+
+We can also categorize `Solar.R`:
+
+```         
+Solar.R <= 115       : Low
+115 < Solar.R <= 185 : Medium
+258 < Solar.R        : High
+```
+
+```{r contingency-table-solar, exercise=TRUE}
+contingency_table2 <- df %>%
+  mutate(solar_cat = case_when(
+    Solar.R <= 115 ~ "Low",
+    Solar.R > 115 & Solar.R <= 185 ~ "Medium",
+    Solar.R > 258 ~ "High"
+  )) %>%
+  group_by(solar_cat, Ozone_Level) %>%
+  summarise(Count = n()) %>%
+  pivot_wider(
+    names_from = Ozone_Level,
+    values_from = Count
+  )
+
+print(contingency_table2)
+```
+
+## Interpretation Check
+
+Look at the contingency-table examples above. In one or two sentences,
+describe one pattern you see and one thing we should be careful not to
+claim from these summaries alone.
+
+```{r contingency-interpretation, exercise=TRUE}
+
+```
+
+## Your Turn 1
+
+### Create Celsius Temperature
+
+In the air quality data, create a new column named `Temp_C` from `Temp`.
+Use this formula:
+
+$$
+C = (F - 32) \times \frac{5}{9}
+$$
+
+```{r ex-temp-c, exercise=TRUE}
+df <- read.csv("airquality.csv")
+```
+
+```{r ex-temp-c-hint-1}
+# Use mutate() to create Temp_C.
+# The right side should be the Celsius formula:
+# (Temp - 32) * 5 / 9
+```
+
+```{r, context="server", echo=FALSE}
+timed_solution(
+  "ex_temp_c_solution_code",
+  "df <- read.csv(\"airquality.csv\")\n\ndf_new1 <- df %>%\n  mutate(Temp_C = (Temp - 32) * 5 / 9)\n\ndf_new1"
+)
+```
+
+```{r ex-temp-c-solution-ui, echo=FALSE}
+uiOutput("ex_temp_c_solution_code")
+```
+
+## Filtering Out Missing Values
+
+Some variables contain missing values, shown as `NA`.
+
+```{r show-missing-values, exercise=TRUE}
+head(df)
+```
+
+To remove rows where a specific column is missing, combine `filter()`
+with `!is.na()`.
+
+```{r filter-missing-ozone-solar, exercise=TRUE}
+filtered_df <- df %>%
+  filter(!is.na(Ozone), !is.na(Solar.R))
+
+print(filtered_df[1:10, ])
+```
+
+To remove rows that have missing values in any column, use `drop_na()`.
+
+```{r drop-na-example, exercise=TRUE}
+df_clean <- df %>%
+  drop_na()
+
+head(df_clean)
+```
+
+## Your Turn 2
+
+### Categorize Wind and Ozone
+
+The Beaufort wind scale categorizes wind speed in miles per hour:
+
+```         
+Calm: less than 1 mph
+Light Air: 1-4 mph
+Light Breeze: 4-7 mph
+Gentle Breeze: 7-12 mph
+Moderate Breeze: 12-18 mph
+Fresh Breeze: 18-24 mph
+Strong Breeze: greater than 24 mph
+```
+
+Also categorize ozone level into two levels:
+
+```         
+Low: less than or equal to the median ozone level
+High: greater than the median ozone level
+```
+
+### Step 1: Exclude Missing Values
+
+```{r ex-clean-data, exercise=TRUE}
+df <- read.csv("airquality.csv")
+```
+
+### Step 2: Create an Ozone Category
+
+```{r ex-ozone-category, exercise=TRUE}
+```
+
+### Step 3: Create a Wind Category
+
+```{r ex-wind-category, exercise=TRUE}
+```
+
+### Step 4: Make a Contingency Table
+
+```{r ex-wind-ozone-table, exercise=TRUE}
+```
+
+```{r ex-wind-ozone-hint-1}
+# Start with drop_na(), then use mutate() and case_when().
+df_clean <- df %>% drop_na()
+```
+
+```{r, context="server", echo=FALSE}
+timed_solution(
+  "ex_wind_ozone_solution_code",
+  "df <- read.csv(\"airquality.csv\")\n\ndf_clean <- df %>%\n  drop_na()\n\ndf_categorized <- df_clean %>%\n  mutate(Ozone_cat = case_when(\n    Ozone <= median(Ozone) ~ \"Low\",\n    Ozone > median(Ozone) ~ \"High\"\n  ))\n\ndf_categorized2 <- df_categorized %>%\n  mutate(Wind_cat = case_when(\n    Wind <= 1 ~ \"Calm\",\n    Wind > 1 & Wind <= 4 ~ \"Light Air\",\n    Wind > 4 & Wind <= 7 ~ \"Light Breeze\",\n    Wind > 7 & Wind <= 12 ~ \"Gentle Breeze\",\n    Wind > 12 & Wind <= 18 ~ \"Moderate Breeze\",\n    Wind > 18 & Wind <= 24 ~ \"Fresh Breeze\",\n    Wind > 24 ~ \"Strong Breeze\"\n  ))\n\nmy_contingency_tbl <- df_categorized2 %>%\n  group_by(Ozone_cat, Wind_cat) %>%\n  summarise(Count = n()) %>%\n  pivot_wider(names_from = Wind_cat, values_from = Count)\n\nmy_contingency_tbl"
+)
+```
+
+```{r ex-wind-ozone-solution-ui, echo=FALSE}
+uiOutput("ex_wind_ozone_solution_code")
+```
+
+
+## Submit
+
+```{r, echo=FALSE, context="server"}
+encoder_logic()
+```
+
+```{r encode, echo=FALSE}
+learnrhash::encoder_ui(ui_before = hash_encoder_ui)
+```

@@ -1,0 +1,431 @@
+---
+title: "Probability: 4 - Functions, Loops, and Probability Calculations"
+output:
+  learnr::tutorial:
+    progressive: true
+    allow_skip: true
+runtime: shiny_prerendered
+editor_options:
+  markdown:
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+library(learnr)
+library(tidyverse)
+library(shiny)
+
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+tutorial_options(exercise.eval = FALSE)
+
+my_reveal_time <- "2026-06-20 15:00:00"
+
+outcomes <- c(0, 1, 2, 3)
+probabilities <- c(0.10, 0.20, 0.40, 0.30)
+
+is_server_context <- function(.envir) {
+  inherits(.envir$input, "reactivevalues") &
+    inherits(.envir$output, "shinyoutput") &
+    inherits(.envir$session, "ShinySession")
+}
+
+check_server_context <- function(.envir) {
+  if (!is_server_context(.envir)) {
+    calling_func <- deparse(sys.calls()[[sys.nframe() - 1]])
+    err <- paste0("Function `", calling_func, "` must be called from an Rmd chunk where `context = \"server\"`")
+    stop(err, call. = FALSE)
+  }
+}
+
+encoder_logic <- function(strip_output = FALSE) {
+  p <- parent.frame()
+  check_server_context(p)
+  assign("strip_output", strip_output, envir = p)
+  local(
+    {
+      encoded_txt <- shiny::eventReactive(
+        input$hash_generate,
+        {
+          state <- learnr:::get_tutorial_state()
+          shiny::validate(shiny::need(length(state) > 0, "No progress yet."))
+          shiny::validate(shiny::need(nchar(input$name) > 0, "No name entered."))
+          shiny::validate(shiny::need(nchar(input$studentID) > 0, "Please enter your student ID"))
+          user_state <- purrr::map_dfr(state, identity, .id = "label")
+          user_state <- dplyr::group_by(user_state, label, type, correct)
+          user_state <- dplyr::summarize(
+            user_state,
+            answer = list(answer),
+            timestamp = dplyr::first(timestamp),
+            .groups = "drop"
+          )
+          user_state <- dplyr::relocate(user_state, correct, .before = timestamp)
+          user_info <- tibble(
+            label = c("student_name", "student_id"),
+            type = "identifier",
+            answer = as.list(c(input$name, input$studentID)),
+            timestamp = format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z", tz = "UTC")
+          )
+          learnrhash::encode_obj(bind_rows(user_info, user_state))
+        }
+      )
+      output$hash_output <- shiny::renderText(encoded_txt())
+    },
+    envir = p
+  )
+}
+
+hash_encoder_ui <- {
+  shiny::div(
+    "If you have completed this tutorial and are happy with all of your",
+    "solutions, please enter your identifying information, then click the button below to generate your hash",
+    textInput("name", "What's your name?"),
+    textInput("studentID", "What is your student ID?"),
+    renderText({
+      input$caption
+    })
+  )
+}
+
+solution_code_card <- function(code, title = "Solution") {
+  tags$div(
+    style = paste(
+      "margin: 1rem 0 1.25rem;",
+      "border: 1px solid #d7e3f3;",
+      "border-left: 5px solid #2f6f9f;",
+      "border-radius: 8px;",
+      "background: #f8fbff;",
+      "box-shadow: 0 2px 8px rgba(31, 45, 61, 0.08);",
+      "overflow: hidden;"
+    ),
+    tags$div(
+      style = paste(
+        "display: flex;",
+        "align-items: center;",
+        "justify-content: space-between;",
+        "gap: 0.75rem;",
+        "padding: 0.7rem 0.9rem;",
+        "background: #eef6ff;",
+        "border-bottom: 1px solid #d7e3f3;"
+      ),
+      tags$strong(title, style = "color: #1f4e79; font-size: 1rem;"),
+      tags$span(
+        "released",
+        style = paste(
+          "padding: 0.15rem 0.5rem;",
+          "border-radius: 999px;",
+          "background: #ffffff;",
+          "color: #3c6478;",
+          "font-size: 0.78rem;",
+          "font-weight: 600;"
+        )
+      )
+    ),
+    tags$pre(
+      style = paste(
+        "margin: 0;",
+        "padding: 0.9rem 1rem;",
+        "background: #ffffff;",
+        "border: 0;",
+        "white-space: pre-wrap;",
+        "text-align: left;"
+      ),
+      tags$code(
+        htmltools::HTML(htmltools::htmlEscape(code)),
+        style = "display: block; color: #243447; font-size: 0.95rem; line-height: 1.45;"
+      )
+    )
+  )
+}
+
+timed_solution <- function(output_id, code, title = "Solution",
+                           reveal_time = my_reveal_time,
+                           tz = "America/New_York",
+                           check_every_ms = 1000) {
+  p <- parent.frame()
+  check_server_context(p)
+
+  p$output[[output_id]] <- shiny::renderUI({
+    shiny::invalidateLater(check_every_ms, p$session)
+    release_at <- as.POSIXct(reveal_time, tz = tz)
+    if (Sys.time() < release_at) {
+      return(NULL)
+    }
+    solution_code_card(code, title)
+  })
+}
+```
+
+## Welcome
+
+Hello, and welcome to **Functions, Loops, and Probability
+Calculations**!
+
+In this tutorial we will use R to turn repeated probability calculations
+into reusable code. We will write small functions, simulate repeated
+random experiments, and compare simulated results with theoretical
+probabilities.
+
+Our learning goals are to:
+
+- write a function with inputs and a returned value;
+- check whether a probability distribution is valid;
+- compute expected value from outcomes and probabilities;
+- use `sample()` and `replicate()` to simulate repeated random outcomes;
+- explain why simulated probabilities get more stable as the number of
+  repetitions increases.
+
+## Packages
+
+```{r load-packages, exercise=TRUE}
+library(dplyr)
+library(ggplot2)
+```
+
+## Functions for Repeated Calculations
+
+A function is useful when we need to do the same kind of calculation
+more than once. For example, probability from counts is:
+
+$$
+\text{probability} = \frac{\text{number of favorable outcomes}}{\text{number of possible outcomes}}
+$$
+
+```{r probability-function, exercise=TRUE}
+prob_from_counts <- function(favorable, total) {
+  favorable / total
+}
+
+prob_from_counts(favorable = 2, total = 6)
+```
+
+## Your Turn 1
+
+Write a function named `percent_from_counts()` that converts favorable
+outcomes and total outcomes into a percentage.
+
+```{r ex-percent-function, exercise=TRUE}
+
+```
+
+```{r ex-percent-function-hint-1}
+# Start with:
+# percent_from_counts <- function(favorable, total) {
+#   ...
+# }
+```
+
+```{r, context="server", echo=FALSE}
+timed_solution(
+  "ex_percent_function_solution_code",
+  "percent_from_counts <- function(favorable, total) {\n  favorable / total * 100\n}\n\npercent_from_counts(2, 6)"
+)
+```
+
+```{r ex-percent-function-solution-ui, echo=FALSE}
+uiOutput("ex_percent_function_solution_code")
+```
+
+## Checking a Probability Distribution
+
+A valid probability distribution has two features:
+
+- every probability is between 0 and 1;
+- all probabilities add up to 1.
+
+```{r check-probabilities, exercise=TRUE}
+outcomes <- c(0, 1, 2, 3)
+probabilities <- c(0.10, 0.20, 0.40, 0.30)
+
+sum(probabilities)
+all(probabilities >= 0 & probabilities <= 1)
+```
+
+## Your Turn 2
+
+The vector below is supposed to contain probabilities, but it has a
+problem. Run the checks, then edit the probabilities so the distribution
+is valid.
+
+```{r ex-check-distribution, exercise=TRUE}
+probabilities_bad <- c(0.15, 0.25, 0.35, 0.35)
+
+sum(probabilities_bad)
+all(probabilities_bad >= 0 & probabilities_bad <= 1)
+```
+
+```{r ex-check-distribution-hint-1}
+# The current probabilities add to more than 1.
+# Change one value so the sum is exactly 1.
+```
+
+```{r, context="server", echo=FALSE}
+timed_solution(
+  "ex_check_distribution_solution_code",
+  "probabilities_fixed <- c(0.15, 0.25, 0.35, 0.25)\n\nsum(probabilities_fixed)\nall(probabilities_fixed >= 0 & probabilities_fixed <= 1)"
+)
+```
+
+```{r ex-check-distribution-solution-ui, echo=FALSE}
+uiOutput("ex_check_distribution_solution_code")
+```
+
+## Expected Value
+
+Expected value is a weighted average. Outcomes with larger probabilities
+count more heavily.
+
+```{r expected-value-example, exercise=TRUE}
+outcomes <- c(0, 1, 2, 3)
+probabilities <- c(0.10, 0.20, 0.40, 0.30)
+
+sum(outcomes * probabilities)
+```
+
+## Your Turn 3
+
+Create a function called `expected_value()` that takes two inputs:
+`x` for outcomes and `p` for probabilities. The function should return
+the expected value.
+
+```{r ex-expected-value-function, exercise=TRUE}
+
+```
+
+```{r ex-expected-value-function-hint-1}
+# Multiply x and p, then add the results.
+# expected_value <- function(x, p) {
+#   ...
+# }
+```
+
+```{r, context="server", echo=FALSE}
+timed_solution(
+  "ex_expected_value_function_solution_code",
+  "expected_value <- function(x, p) {\n  sum(x * p)\n}\n\nexpected_value(outcomes, probabilities)"
+)
+```
+
+```{r ex-expected-value-function-solution-ui, echo=FALSE}
+uiOutput("ex_expected_value_function_solution_code")
+```
+
+## Simulating One Random Outcome
+
+We can use `sample()` to draw one outcome according to a probability
+distribution.
+
+```{r sample-one-outcome, exercise=TRUE}
+set.seed(213)
+
+sample(
+  x = outcomes,
+  size = 1,
+  prob = probabilities
+)
+```
+
+## Repeating a Simulation
+
+The function `replicate()` repeats the same expression many times.
+
+```{r replicate-simulation, exercise=TRUE}
+set.seed(213)
+
+simulated_outcomes <- replicate(
+  n = 1000,
+  expr = sample(outcomes, size = 1, prob = probabilities)
+)
+
+table(simulated_outcomes)
+```
+
+## Simulated Probabilities
+
+```{r simulated-probabilities, exercise=TRUE}
+simulated_table <- tibble(outcome = simulated_outcomes) %>%
+  count(outcome) %>%
+  mutate(simulated_probability = n / sum(n))
+
+simulated_table
+```
+
+## Compare Simulation and Theory
+
+```{r compare-simulation-theory, exercise=TRUE}
+theory_table <- tibble(
+  outcome = outcomes,
+  theoretical_probability = probabilities
+)
+
+left_join(theory_table, simulated_table, by = "outcome")
+```
+
+## Your Turn 4
+
+Simulate 100 rolls of a fair six-sided die. Then estimate the
+probability of rolling a 6.
+
+```{r ex-die-simulation, exercise=TRUE}
+
+```
+
+```{r ex-die-simulation-hint-1}
+# Use sample(1:6, size = 1) inside replicate().
+# Then use mean(rolls == 6).
+```
+
+```{r, context="server", echo=FALSE}
+timed_solution(
+  "ex_die_simulation_solution_code",
+  "set.seed(213)\n\nrolls <- replicate(100, sample(1:6, size = 1))\nmean(rolls == 6)"
+)
+```
+
+```{r ex-die-simulation-solution-ui, echo=FALSE}
+uiOutput("ex_die_simulation_solution_code")
+```
+
+## Interpretation Check
+
+In one or two sentences, explain why the simulated probability from
+100 die rolls may not be exactly equal to the theoretical probability
+of rolling a 6.
+
+```{r ex-simulation-interpretation, exercise=TRUE}
+
+```
+
+## Final Task
+
+Improve `expected_value()` so it checks whether the probabilities add to
+1. If they do not, the function should stop with an error message.
+
+```{r ex-final-expected-value, exercise=TRUE}
+
+```
+
+```{r ex-final-expected-value-hint-1}
+# Use if (...) stop("...")
+# round(sum(p), 10) is a useful way to avoid tiny decimal issues.
+```
+
+```{r, context="server", echo=FALSE}
+timed_solution(
+  "ex_final_expected_value_solution_code",
+  "expected_value <- function(x, p) {\n  if (round(sum(p), 10) != 1) {\n    stop(\"Probabilities must sum to 1.\")\n  }\n  sum(x * p)\n}\n\nexpected_value(outcomes, probabilities)"
+)
+```
+
+```{r ex-final-expected-value-solution-ui, echo=FALSE}
+uiOutput("ex_final_expected_value_solution_code")
+```
+
+## Submit
+
+```{r, echo=FALSE, context="server"}
+encoder_logic()
+```
+
+```{r encode, echo=FALSE}
+learnrhash::encoder_ui(ui_before = hash_encoder_ui)
+```

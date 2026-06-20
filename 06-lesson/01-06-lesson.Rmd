@@ -1,0 +1,395 @@
+---
+title: "Modeling: 6 - Linear Modeling Workflow"
+output:
+  learnr::tutorial:
+    progressive: true
+    allow_skip: true
+runtime: shiny_prerendered
+editor_options:
+  markdown:
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+library(learnr)
+library(tidyverse)
+library(shiny)
+
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+tutorial_options(exercise.eval = FALSE)
+
+my_reveal_time <- "2026-06-20 15:00:00"
+
+air_model_data <- as_tibble(airquality) %>%
+  drop_na(Ozone, Temp, Wind, Solar.R)
+
+is_server_context <- function(.envir) {
+  inherits(.envir$input, "reactivevalues") &
+    inherits(.envir$output, "shinyoutput") &
+    inherits(.envir$session, "ShinySession")
+}
+
+check_server_context <- function(.envir) {
+  if (!is_server_context(.envir)) {
+    calling_func <- deparse(sys.calls()[[sys.nframe() - 1]])
+    err <- paste0("Function `", calling_func, "` must be called from an Rmd chunk where `context = \"server\"`")
+    stop(err, call. = FALSE)
+  }
+}
+
+encoder_logic <- function(strip_output = FALSE) {
+  p <- parent.frame()
+  check_server_context(p)
+  assign("strip_output", strip_output, envir = p)
+  local(
+    {
+      encoded_txt <- shiny::eventReactive(
+        input$hash_generate,
+        {
+          state <- learnr:::get_tutorial_state()
+          shiny::validate(shiny::need(length(state) > 0, "No progress yet."))
+          shiny::validate(shiny::need(nchar(input$name) > 0, "No name entered."))
+          shiny::validate(shiny::need(nchar(input$studentID) > 0, "Please enter your student ID"))
+          user_state <- purrr::map_dfr(state, identity, .id = "label")
+          user_state <- dplyr::group_by(user_state, label, type, correct)
+          user_state <- dplyr::summarize(
+            user_state,
+            answer = list(answer),
+            timestamp = dplyr::first(timestamp),
+            .groups = "drop"
+          )
+          user_state <- dplyr::relocate(user_state, correct, .before = timestamp)
+          user_info <- tibble(
+            label = c("student_name", "student_id"),
+            type = "identifier",
+            answer = as.list(c(input$name, input$studentID)),
+            timestamp = format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z", tz = "UTC")
+          )
+          learnrhash::encode_obj(bind_rows(user_info, user_state))
+        }
+      )
+      output$hash_output <- shiny::renderText(encoded_txt())
+    },
+    envir = p
+  )
+}
+
+hash_encoder_ui <- {
+  shiny::div(
+    "If you have completed this tutorial and are happy with all of your",
+    "solutions, please enter your identifying information, then click the button below to generate your hash",
+    textInput("name", "What's your name?"),
+    textInput("studentID", "What is your student ID?"),
+    renderText({
+      input$caption
+    })
+  )
+}
+
+solution_code_card <- function(code, title = "Solution") {
+  tags$div(
+    style = paste(
+      "margin: 1rem 0 1.25rem;",
+      "border: 1px solid #d7e3f3;",
+      "border-left: 5px solid #2f6f9f;",
+      "border-radius: 8px;",
+      "background: #f8fbff;",
+      "box-shadow: 0 2px 8px rgba(31, 45, 61, 0.08);",
+      "overflow: hidden;"
+    ),
+    tags$div(
+      style = paste(
+        "display: flex;",
+        "align-items: center;",
+        "justify-content: space-between;",
+        "gap: 0.75rem;",
+        "padding: 0.7rem 0.9rem;",
+        "background: #eef6ff;",
+        "border-bottom: 1px solid #d7e3f3;"
+      ),
+      tags$strong(title, style = "color: #1f4e79; font-size: 1rem;"),
+      tags$span(
+        "released",
+        style = paste(
+          "padding: 0.15rem 0.5rem;",
+          "border-radius: 999px;",
+          "background: #ffffff;",
+          "color: #3c6478;",
+          "font-size: 0.78rem;",
+          "font-weight: 600;"
+        )
+      )
+    ),
+    tags$pre(
+      style = paste(
+        "margin: 0;",
+        "padding: 0.9rem 1rem;",
+        "background: #ffffff;",
+        "border: 0;",
+        "white-space: pre-wrap;",
+        "text-align: left;"
+      ),
+      tags$code(
+        htmltools::HTML(htmltools::htmlEscape(code)),
+        style = "display: block; color: #243447; font-size: 0.95rem; line-height: 1.45;"
+      )
+    )
+  )
+}
+
+timed_solution <- function(output_id, code, title = "Solution",
+                           reveal_time = my_reveal_time,
+                           tz = "America/New_York",
+                           check_every_ms = 1000) {
+  p <- parent.frame()
+  check_server_context(p)
+
+  p$output[[output_id]] <- shiny::renderUI({
+    shiny::invalidateLater(check_every_ms, p$session)
+    release_at <- as.POSIXct(reveal_time, tz = tz)
+    if (Sys.time() < release_at) {
+      return(NULL)
+    }
+    solution_code_card(code, title)
+  })
+}
+```
+
+## Welcome
+
+Hello, and welcome to **Linear Modeling Workflow**!
+
+In this tutorial we will fit and interpret a simple linear model. The
+coding goal is to use `lm()` and supporting plots. The statistical goal
+is to explain what a model says in context and what it does not prove.
+
+Our learning goals are to:
+
+- make an exploratory scatterplot before modeling;
+- fit a simple linear model with `lm()`;
+- interpret the intercept and slope in context;
+- add a fitted line to a scatterplot;
+- inspect residuals and describe model limitations.
+
+## Packages
+
+```{r load-packages, exercise=TRUE}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+```
+
+## Prepare the Data
+
+We will use the built-in `airquality` data. To keep the modeling
+examples simple, we will remove rows missing `Ozone`, `Temp`, `Wind`, or
+`Solar.R`.
+
+```{r prepare-data, exercise=TRUE}
+air_model_data <- as_tibble(airquality) %>%
+  drop_na(Ozone, Temp, Wind, Solar.R)
+
+glimpse(air_model_data)
+```
+
+## Explore Before Modeling
+
+Before fitting a model, plot the response and explanatory variable. We
+will model `Ozone` using `Temp`.
+
+```{r exploratory-scatterplot, exercise=TRUE}
+ggplot(air_model_data, aes(x = Temp, y = Ozone)) +
+  geom_point() +
+  labs(x = "Temperature", y = "Ozone")
+```
+
+## Fit a Linear Model
+
+The formula `Ozone ~ Temp` means:
+
+```         
+response variable ~ explanatory variable
+```
+
+```{r fit-model, exercise=TRUE}
+ozone_temp_model <- lm(Ozone ~ Temp, data = air_model_data)
+
+summary(ozone_temp_model)
+```
+
+## Model Coefficients
+
+```{r model-coefficients, exercise=TRUE}
+coef(ozone_temp_model)
+```
+
+The intercept is the predicted ozone level when temperature is 0 degrees
+Fahrenheit. The slope is the predicted change in ozone level for a
+1-degree increase in temperature.
+
+## Your Turn 1
+
+Fit a model predicting `Ozone` from `Wind`. Save it as
+`ozone_wind_model`, then print the model summary.
+
+```{r ex-fit-wind-model, exercise=TRUE}
+
+```
+
+```{r ex-fit-wind-model-hint-1}
+# Use lm(Ozone ~ Wind, data = air_model_data).
+```
+
+```{r, context="server", echo=FALSE}
+timed_solution(
+  "ex_fit_wind_model_solution_code",
+  "ozone_wind_model <- lm(Ozone ~ Wind, data = air_model_data)\n\nsummary(ozone_wind_model)"
+)
+```
+
+```{r ex-fit-wind-model-solution-ui, echo=FALSE}
+uiOutput("ex_fit_wind_model_solution_code")
+```
+
+## Add a Fitted Line
+
+```{r fitted-line, exercise=TRUE}
+ggplot(air_model_data, aes(x = Temp, y = Ozone)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(x = "Temperature", y = "Ozone")
+```
+
+## Predictions
+
+Use `predict()` with a small data frame containing the explanatory
+variable values where we want predictions.
+
+```{r model-prediction, exercise=TRUE}
+new_days <- tibble(Temp = c(70, 80, 90))
+
+predict(ozone_temp_model, newdata = new_days)
+```
+
+## Your Turn 2
+
+Use `ozone_wind_model` to predict ozone when wind speed is 5, 10, and
+15 miles per hour.
+
+```{r ex-wind-predictions, exercise=TRUE}
+
+```
+
+```{r ex-wind-predictions-hint-1}
+# Your new data frame needs a column named Wind.
+```
+
+```{r, context="server", echo=FALSE}
+timed_solution(
+  "ex_wind_predictions_solution_code",
+  "ozone_wind_model <- lm(Ozone ~ Wind, data = air_model_data)\n\nnew_wind_days <- tibble(Wind = c(5, 10, 15))\n\npredict(ozone_wind_model, newdata = new_wind_days)"
+)
+```
+
+```{r ex-wind-predictions-solution-ui, echo=FALSE}
+uiOutput("ex_wind_predictions_solution_code")
+```
+
+## Residuals
+
+A residual is:
+
+$$
+\text{observed value} - \text{predicted value}
+$$
+
+```{r add-residuals, exercise=TRUE}
+model_data_with_residuals <- air_model_data %>%
+  mutate(
+    predicted_ozone = predict(ozone_temp_model),
+    residual = Ozone - predicted_ozone
+  )
+
+head(model_data_with_residuals)
+```
+
+## Residual Plot
+
+```{r residual-plot, exercise=TRUE}
+ggplot(model_data_with_residuals, aes(x = predicted_ozone, y = residual)) +
+  geom_point() +
+  geom_hline(yintercept = 0) +
+  labs(x = "Predicted ozone", y = "Residual")
+```
+
+## Interpretation Check
+
+In one or two sentences, interpret the slope of the `Ozone ~ Temp`
+model in context. Be clear that this model describes an association and
+does not prove causation.
+
+```{r ex-slope-interpretation, exercise=TRUE}
+
+```
+
+## Your Turn 3
+
+Fit a model predicting `Ozone` from `Solar.R`. Make a scatterplot with a
+fitted line.
+
+```{r ex-solar-model-plot, exercise=TRUE}
+
+```
+
+```{r ex-solar-model-plot-hint-1}
+# Fit lm(Ozone ~ Solar.R, data = air_model_data).
+# Then map Solar.R to x and Ozone to y in ggplot().
+```
+
+```{r, context="server", echo=FALSE}
+timed_solution(
+  "ex_solar_model_plot_solution_code",
+  "ozone_solar_model <- lm(Ozone ~ Solar.R, data = air_model_data)\n\nsummary(ozone_solar_model)\n\nggplot(air_model_data, aes(x = Solar.R, y = Ozone)) +\n  geom_point() +\n  geom_smooth(method = \"lm\", se = FALSE) +\n  labs(x = \"Solar radiation\", y = \"Ozone\")"
+)
+```
+
+```{r ex-solar-model-plot-solution-ui, echo=FALSE}
+uiOutput("ex_solar_model_plot_solution_code")
+```
+
+## Final Task
+
+Choose either `Temp`, `Wind`, or `Solar.R` as the explanatory variable.
+Fit a model predicting `Ozone`, then write a short interpretation of the
+slope in context.
+
+```{r ex-final-model, exercise=TRUE}
+
+```
+
+```{r ex-final-model-hint-1}
+# Example structure:
+# my_model <- lm(Ozone ~ Temp, data = air_model_data)
+# summary(my_model)
+```
+
+```{r, context="server", echo=FALSE}
+timed_solution(
+  "ex_final_model_solution_code",
+  "my_model <- lm(Ozone ~ Temp, data = air_model_data)\n\nsummary(my_model)\n\n# Interpretation example:\n# For each additional degree Fahrenheit, the model predicts an average\n# increase of about 2.44 ozone units. This is an association in these\n# data, not proof that temperature alone causes ozone to increase."
+)
+```
+
+```{r ex-final-model-solution-ui, echo=FALSE}
+uiOutput("ex_final_model_solution_code")
+```
+
+## Submit
+
+```{r, echo=FALSE, context="server"}
+encoder_logic()
+```
+
+```{r encode, echo=FALSE}
+learnrhash::encoder_ui(ui_before = hash_encoder_ui)
+```
