@@ -1,5 +1,5 @@
 ---
-title: "Introduction to data: 1 - Language of data"
+title: "Tutorial 1: Language of Data and R Basics"
 output: 
   learnr::tutorial:
     progressive: true
@@ -198,10 +198,12 @@ timed_solution <- function(output_id, code, title = "Solution",
 
 ## Welcome
 
-Hello, and welcome to **Introduction to data**!
+Hello, and welcome to **Language of Data and R Basics**!
 
 In this tutorial we will take you through concepts and R code that are
-essential for getting started with data analysis.
+essential for getting started with data analysis. This tutorial is one
+of the two preparation tutorials for **Lab 2**, where you will classify
+variables, inspect data, and begin transforming data in R.
 
 Scientists seek to answer questions using rigorous methods and careful
 observations. These observations form the backbone of a statistical

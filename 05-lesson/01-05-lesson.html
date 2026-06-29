@@ -14,7 +14,7 @@
 <meta name="allow-skip" content="true" />
 <meta name="learnr-version-prerender" content="0.11.5" />
 
-<title>Inference: 5 - Simulation, Sampling Distributions, and Inference</title>
+<title>Tutorial 5: LLN, CLT, and Sampling Distributions</title>
 
 <!-- header-includes START -->
 <!-- HEAD_CONTENT -->
@@ -111,20 +111,20 @@ if (window.hljs) {
 
 <div id="section-welcome" class="section level2">
 <h2>Welcome</h2>
-<p>Hello, and welcome to <strong>Simulation, Sampling Distributions, and
-Inference</strong>!</p>
-<p>In this tutorial we will repeatedly sample from a known population.
-The goal is to see that sample statistics vary from sample to sample,
-and that confidence intervals and p-values are built from this
-variability.</p>
+<p>Hello, and welcome to <strong>LLN, CLT, and Sampling
+Distributions</strong>!</p>
+<p>This tutorial is preparation for <strong>Lab 5</strong>. In Lab 5 you
+will simulate sampling distributions from several different populations
+and explain how the Law of Large Numbers and Central Limit Theorem show
+up in the results.</p>
 <p>Our learning goals are to:</p>
 <ul>
-<li>compute a sample proportion;</li>
-<li>build a sampling distribution using repeated samples;</li>
-<li>compare sampling variability for small and large samples;</li>
-<li>construct and interpret a confidence interval for one
-proportion;</li>
-<li>compute and interpret a p-value for one proportion.</li>
+<li>generate values from a population distribution;</li>
+<li>draw one sample and compute a sample mean;</li>
+<li>repeat sampling to build a sampling distribution;</li>
+<li>compare the effect of sample size <code>n</code> and repetitions
+<code>K</code>;</li>
+<li>connect simulated spread to standard error.</li>
 </ul>
 </div>
 <div id="section-packages" class="section level2">
@@ -137,23 +137,30 @@ library(ggplot2)</code></pre>
 <script type="application/json" data-ui-opts="1">{"engine":"r","has_checker":false,"caption":"<span data-i18n=\"text.enginecap\" data-i18n-opts=\"{&quot;engine&quot;:&quot;R&quot;}\">R Code<\/span>"}</script>
 </div>
 </div>
-<div id="section-a-simulated-population" class="section level2">
-<h2>A Simulated Population</h2>
-<p>Imagine a campus survey where each student either supports a proposed
-policy or does not support it. The variable <code>supports_policy</code>
-is 1 for support and 0 for no support.</p>
+<div id="section-a-skewed-population" class="section level2">
+<h2>A Skewed Population</h2>
+<p>We will start with a right-skewed population. The population mean is
+the long-run target for sample means.</p>
 <div class="tutorial-exercise" data-label="create-population"
 data-completion="1" data-diagnostics="1" data-startover="1"
 data-lines="0" data-pipe="|&gt;">
 <pre class="text"><code>set.seed(213)
 
-population &lt;- tibble(
-  student = 1:10000,
-  supports_policy = rbinom(10000, size = 1, prob = 0.58)
-)
+population &lt;- tibble(value = rgamma(10000, shape = 2, rate = 0.5))
 
 population %&gt;%
-  summarise(parameter = mean(supports_policy))</code></pre>
+  summarise(
+    population_mean = mean(value),
+    population_sd = sd(value)
+  )</code></pre>
+<script type="application/json" data-ui-opts="1">{"engine":"r","has_checker":false,"caption":"<span data-i18n=\"text.enginecap\" data-i18n-opts=\"{&quot;engine&quot;:&quot;R&quot;}\">R Code<\/span>"}</script>
+</div>
+<div class="tutorial-exercise" data-label="population-plot"
+data-completion="1" data-diagnostics="1" data-startover="1"
+data-lines="0" data-pipe="|&gt;">
+<pre class="text"><code>ggplot(population, aes(x = value)) +
+  geom_histogram(bins = 40, color = &quot;white&quot;) +
+  labs(x = &quot;Population value&quot;, y = &quot;Count&quot;)</code></pre>
 <script type="application/json" data-ui-opts="1">{"engine":"r","has_checker":false,"caption":"<span data-i18n=\"text.enginecap\" data-i18n-opts=\"{&quot;engine&quot;:&quot;R&quot;}\">R Code<\/span>"}</script>
 </div>
 </div>
@@ -165,17 +172,16 @@ data-lines="0" data-pipe="|&gt;">
 <pre class="text"><code>set.seed(213)
 
 one_sample &lt;- population %&gt;%
-  slice_sample(n = 80)
+  slice_sample(n = 30)
 
 one_sample %&gt;%
-  summarise(p_hat = mean(supports_policy))</code></pre>
+  summarise(sample_mean = mean(value))</code></pre>
 <script type="application/json" data-ui-opts="1">{"engine":"r","has_checker":false,"caption":"<span data-i18n=\"text.enginecap\" data-i18n-opts=\"{&quot;engine&quot;:&quot;R&quot;}\">R Code<\/span>"}</script>
 </div>
 </div>
 <div id="section-your-turn-1" class="section level2">
 <h2>Your Turn 1</h2>
-<p>Take a sample of 40 students and compute the sample proportion who
-support the policy.</p>
+<p>Take a sample of 10 observations and compute its sample mean.</p>
 <div class="tutorial-exercise" data-label="ex-one-small-sample"
 data-completion="1" data-diagnostics="1" data-startover="1"
 data-lines="0" data-pipe="|&gt;">
@@ -186,15 +192,14 @@ data-lines="0" data-pipe="|&gt;">
 data-label="ex-one-small-sample-hint-1" data-completion="1"
 data-diagnostics="1" data-startover="1" data-lines="0"
 data-pipe="|&gt;">
-<pre class="text"><code># Use slice_sample(n = 40), then summarise().</code></pre>
+<pre class="text"><code># Use slice_sample(n = 10), then summarise(sample_mean = mean(value)).</code></pre>
 </div>
 <div id="ex_one_small_sample_solution_code" class="shiny-html-output"></div>
 </div>
-<div id="section-repeat-the-sampling-process" class="section level2">
-<h2>Repeat the Sampling Process</h2>
-<p>Now we will take many samples. Each sample gives one value of
-<code>p_hat</code>. Together, those values form a sampling
-distribution.</p>
+<div id="section-build-a-sampling-distribution" class="section level2">
+<h2>Build a Sampling Distribution</h2>
+<p>Now we repeat the sampling process many times. Each repetition
+produces one sample mean.</p>
 <div class="tutorial-exercise" data-label="repeated-samples"
 data-completion="1" data-diagnostics="1" data-startover="1"
 data-lines="0" data-pipe="|&gt;">
@@ -204,32 +209,29 @@ sampling_distribution &lt;- replicate(
   n = 1000,
   expr = {
     population %&gt;%
-      slice_sample(n = 80) %&gt;%
-      summarise(p_hat = mean(supports_policy)) %&gt;%
-      pull(p_hat)
+      slice_sample(n = 30) %&gt;%
+      summarise(sample_mean = mean(value)) %&gt;%
+      pull(sample_mean)
   }
 )
 
-sampling_distribution &lt;- tibble(p_hat = sampling_distribution)
+sampling_distribution &lt;- tibble(sample_mean = sampling_distribution)
 
 head(sampling_distribution)</code></pre>
 <script type="application/json" data-ui-opts="1">{"engine":"r","has_checker":false,"caption":"<span data-i18n=\"text.enginecap\" data-i18n-opts=\"{&quot;engine&quot;:&quot;R&quot;}\">R Code<\/span>"}</script>
 </div>
-</div>
-<div id="section-plot-the-sampling-distribution" class="section level2">
-<h2>Plot the Sampling Distribution</h2>
 <div class="tutorial-exercise" data-label="sampling-distribution-plot"
 data-completion="1" data-diagnostics="1" data-startover="1"
 data-lines="0" data-pipe="|&gt;">
-<pre class="text"><code>ggplot(sampling_distribution, aes(x = p_hat)) +
-  geom_histogram(binwidth = 0.025, color = &quot;white&quot;) +
-  labs(x = &quot;Sample proportion&quot;, y = &quot;Number of samples&quot;)</code></pre>
+<pre class="text"><code>ggplot(sampling_distribution, aes(x = sample_mean)) +
+  geom_histogram(bins = 35, color = &quot;white&quot;) +
+  labs(x = &quot;Sample mean&quot;, y = &quot;Number of samples&quot;)</code></pre>
 <script type="application/json" data-ui-opts="1">{"engine":"r","has_checker":false,"caption":"<span data-i18n=\"text.enginecap\" data-i18n-opts=\"{&quot;engine&quot;:&quot;R&quot;}\">R Code<\/span>"}</script>
 </div>
 </div>
 <div id="section-your-turn-2" class="section level2">
 <h2>Your Turn 2</h2>
-<p>Repeat the sampling process with samples of size 200 instead of 80.
+<p>Repeat the sampling process with samples of size 100 instead of 30.
 Then plot the sampling distribution.</p>
 <div class="tutorial-exercise"
 data-label="ex-large-sampling-distribution" data-completion="1"
@@ -242,86 +244,60 @@ data-pipe="|&gt;">
 data-label="ex-large-sampling-distribution-hint-1" data-completion="1"
 data-diagnostics="1" data-startover="1" data-lines="0"
 data-pipe="|&gt;">
-<pre class="text"><code># Copy the replicate() pattern above and change n = 80 to n = 200.</code></pre>
+<pre class="text"><code># Copy the replicate() pattern above and change n = 30 to n = 100.</code></pre>
 </div>
 <div id="ex_large_sampling_distribution_solution_code" class="shiny-html-output"></div>
 </div>
 <div id="section-standard-error" class="section level2">
 <h2>Standard Error</h2>
-<p>For one proportion, the standard error is:</p>
+<p>For a sample mean, the standard error is:</p>
 <p><span class="math display">\[
-SE = \sqrt{\frac{\hat{p}(1 - \hat{p})}{n}}
+SE = \frac{\sigma}{\sqrt{n}}
 \]</span></p>
+<p>In practice we often estimate <code>sigma</code> with the population
+or sample standard deviation available in the simulation.</p>
 <div class="tutorial-exercise" data-label="standard-error"
 data-completion="1" data-diagnostics="1" data-startover="1"
 data-lines="0" data-pipe="|&gt;">
-<pre class="text"><code>p_hat &lt;- mean(one_sample$supports_policy)
-n &lt;- nrow(one_sample)
+<pre class="text"><code>population_sd &lt;- sd(population$value)
+n &lt;- 30
 
-standard_error &lt;- sqrt(p_hat * (1 - p_hat) / n)
+standard_error &lt;- population_sd / sqrt(n)
 standard_error</code></pre>
 <script type="application/json" data-ui-opts="1">{"engine":"r","has_checker":false,"caption":"<span data-i18n=\"text.enginecap\" data-i18n-opts=\"{&quot;engine&quot;:&quot;R&quot;}\">R Code<\/span>"}</script>
 </div>
-</div>
-<div id="section-confidence-interval" class="section level2">
-<h2>Confidence Interval</h2>
-<p>A rough 95% confidence interval for one proportion is:</p>
-<p><span class="math display">\[
-\hat{p} \pm 1.96 \times SE
-\]</span></p>
-<div class="tutorial-exercise" data-label="confidence-interval"
+<div class="tutorial-exercise" data-label="simulated-spread"
 data-completion="1" data-diagnostics="1" data-startover="1"
 data-lines="0" data-pipe="|&gt;">
-<pre class="text"><code>lower &lt;- p_hat - 1.96 * standard_error
-upper &lt;- p_hat + 1.96 * standard_error
-
-c(lower, upper)</code></pre>
+<pre class="text"><code>sampling_distribution %&gt;%
+  summarise(simulated_sd = sd(sample_mean))</code></pre>
 <script type="application/json" data-ui-opts="1">{"engine":"r","has_checker":false,"caption":"<span data-i18n=\"text.enginecap\" data-i18n-opts=\"{&quot;engine&quot;:&quot;R&quot;}\">R Code<\/span>"}</script>
 </div>
 </div>
 <div id="section-your-turn-3" class="section level2">
 <h2>Your Turn 3</h2>
-<p>Write a function named <code>prop_ci()</code> that takes a sample
-proportion <code>p_hat</code> and a sample size <code>n</code>, then
-returns the lower and upper bounds of a 95% confidence interval.</p>
-<div class="tutorial-exercise" data-label="ex-prop-ci-function"
+<p>Write a function named <code>simulate_means()</code> that takes a
+sample size <code>n</code> and number of repetitions <code>K</code>,
+then returns a tibble of sample means.</p>
+<div class="tutorial-exercise" data-label="ex-simulate-means-function"
 data-completion="1" data-diagnostics="1" data-startover="1"
 data-lines="0" data-pipe="|&gt;">
 <script type="application/json" data-ui-opts="1">{"engine":"r","has_checker":false,"caption":"<span data-i18n=\"text.enginecap\" data-i18n-opts=\"{&quot;engine&quot;:&quot;R&quot;}\">R Code<\/span>"}</script>
 </div>
 <div class="tutorial-exercise-support"
-data-label="ex-prop-ci-function-hint-1" data-completion="1"
+data-label="ex-simulate-means-function-hint-1" data-completion="1"
 data-diagnostics="1" data-startover="1" data-lines="0"
 data-pipe="|&gt;">
-<pre class="text"><code># Return c(lower, upper).</code></pre>
+<pre class="text"><code># Use replicate(n = K, expr = {...}) inside the function.</code></pre>
 </div>
-<div id="ex_prop_ci_function_solution_code" class="shiny-html-output"></div>
-</div>
-<div id="section-hypothesis-test" class="section level2">
-<h2>Hypothesis Test</h2>
-<p>Suppose the null hypothesis is that exactly half of students support
-the policy.</p>
-<p><span class="math display">\[
-H_0: p = 0.50
-\]</span></p>
-<p>We can approximate a two-sided p-value using a z statistic.</p>
-<div class="tutorial-exercise" data-label="p-value-example"
-data-completion="1" data-diagnostics="1" data-startover="1"
-data-lines="0" data-pipe="|&gt;">
-<pre class="text"><code>null_p &lt;- 0.50
-se_null &lt;- sqrt(null_p * (1 - null_p) / n)
-z &lt;- (p_hat - null_p) / se_null
-p_value &lt;- 2 * (1 - pnorm(abs(z)))
-
-p_value</code></pre>
-<script type="application/json" data-ui-opts="1">{"engine":"r","has_checker":false,"caption":"<span data-i18n=\"text.enginecap\" data-i18n-opts=\"{&quot;engine&quot;:&quot;R&quot;}\">R Code<\/span>"}</script>
-</div>
+<div id="ex_simulate_means_function_solution_code" class="shiny-html-output"></div>
 </div>
 <div id="section-interpretation-check" class="section level2">
 <h2>Interpretation Check</h2>
-<p>In one or two sentences, interpret the confidence interval from this
-tutorial in the context of campus policy support.</p>
-<div class="tutorial-exercise" data-label="ex-ci-interpretation"
+<p>In one or two sentences, explain why the sampling distribution with
+larger <code>n</code> is narrower than the sampling distribution with
+smaller <code>n</code>.</p>
+<div class="tutorial-exercise" data-label="ex-lln-clt-interpretation"
 data-completion="1" data-diagnostics="1" data-startover="1"
 data-lines="0" data-pipe="|&gt;">
 <script type="application/json" data-ui-opts="1">{"engine":"r","has_checker":false,"caption":"<span data-i18n=\"text.enginecap\" data-i18n-opts=\"{&quot;engine&quot;:&quot;R&quot;}\">R Code<\/span>"}</script>
@@ -329,23 +305,23 @@ data-lines="0" data-pipe="|&gt;">
 </div>
 <div id="section-final-task" class="section level2">
 <h2>Final Task</h2>
-<p>Investigate how sample size changes confidence interval width. Use
-<code>p_hat = 0.58</code> with sample sizes 40, 80, 160, and 320. Then
-write two sentences explaining the pattern.</p>
-<div class="tutorial-exercise" data-label="ex-final-ci-width"
+<p>Compare sample sizes 10, 30, and 100 using <code>K = 1000</code>
+repetitions. Create a table with the simulated center and spread for
+each sample size, then write two sentences connecting the pattern to the
+Central Limit Theorem.</p>
+<div class="tutorial-exercise" data-label="ex-final-sample-size"
 data-completion="1" data-diagnostics="1" data-startover="1"
 data-lines="0" data-pipe="|&gt;">
-<pre class="text"><code>sample_sizes &lt;- c(40, 80, 160, 320)</code></pre>
+<pre class="text"><code>sample_sizes &lt;- c(10, 30, 100)</code></pre>
 <script type="application/json" data-ui-opts="1">{"engine":"r","has_checker":false,"caption":"<span data-i18n=\"text.enginecap\" data-i18n-opts=\"{&quot;engine&quot;:&quot;R&quot;}\">R Code<\/span>"}</script>
 </div>
 <div class="tutorial-exercise-support"
-data-label="ex-final-ci-width-hint-1" data-completion="1"
+data-label="ex-final-sample-size-hint-1" data-completion="1"
 data-diagnostics="1" data-startover="1" data-lines="0"
 data-pipe="|&gt;">
-<pre class="text"><code># Use your prop_ci() function or repeat the formula.
-# Width is upper bound minus lower bound.</code></pre>
+<pre class="text"><code># Use simulate_means() for each sample size, then summarise().</code></pre>
 </div>
-<div id="ex_final_ci_width_solution_code" class="shiny-html-output"></div>
+<div id="ex_final_sample_size_solution_code" class="shiny-html-output"></div>
 </div>
 <div id="section-submit" class="section level2">
 <h2>Submit</h2>
@@ -361,7 +337,7 @@ solutions, please enter your identifying information, then click the button belo
 <label class="control-label" id="studentID-label" for="studentID">What is your student ID?</label>
 <input id="studentID" type="text" class="shiny-input-text form-control" value="" data-update-on="change"/>
 </div>
-<div id="out1ac9b0e51a4c6522" class="shiny-text-output"></div>
+<div id="out25b2c223e83c456b" class="shiny-text-output"></div>
 </div>
 <div class="row" style="padding-bottom: 0.5em;">
 <div class="col-sm-3">
@@ -434,10 +410,7 @@ tutorial_options(exercise.eval = FALSE)
 
 my_reveal_time <- "2026-06-20 15:00:00"
 
-population <- tibble(
-  student = 1:10000,
-  supports_policy = rbinom(10000, size = 1, prob = 0.58)
-)
+population <- tibble(value = rgamma(10000, shape = 2, rate = 0.5))
 
 is_server_context <- function(.envir) {
   inherits(.envir$input, "reactivevalues") &
@@ -603,8 +576,8 @@ output$`tutorial-exercise-load-packages-output` <- renderUI({
 learnr:::store_exercise_cache(structure(list(label = "load-packages", global_setup = structure(c("library(learnr)", 
 "library(tidyverse)", "library(shiny)", "", "knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)", 
 "tutorial_options(exercise.eval = FALSE)", "", "my_reveal_time <- \"2026-06-20 15:00:00\"", 
-"", "population <- tibble(", "  student = 1:10000,", "  supports_policy = rbinom(10000, size = 1, prob = 0.58)", 
-")", "", "is_server_context <- function(.envir) {", "  inherits(.envir$input, \"reactivevalues\") &", 
+"", "population <- tibble(value = rgamma(10000, shape = 2, rate = 0.5))", 
+"", "is_server_context <- function(.envir) {", "  inherits(.envir$input, \"reactivevalues\") &", 
 "    inherits(.envir$output, \"shinyoutput\") &", "    inherits(.envir$session, \"ShinySession\")", 
 "}", "", "check_server_context <- function(.envir) {", "  if (!is_server_context(.envir)) {", 
 "    calling_func <- deparse(sys.calls()[[sys.nframe() - 1]])", 
@@ -698,8 +671,8 @@ output$`tutorial-exercise-create-population-output` <- renderUI({
 learnr:::store_exercise_cache(structure(list(label = "create-population", global_setup = structure(c("library(learnr)", 
 "library(tidyverse)", "library(shiny)", "", "knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)", 
 "tutorial_options(exercise.eval = FALSE)", "", "my_reveal_time <- \"2026-06-20 15:00:00\"", 
-"", "population <- tibble(", "  student = 1:10000,", "  supports_policy = rbinom(10000, size = 1, prob = 0.58)", 
-")", "", "is_server_context <- function(.envir) {", "  inherits(.envir$input, \"reactivevalues\") &", 
+"", "population <- tibble(value = rgamma(10000, shape = 2, rate = 0.5))", 
+"", "is_server_context <- function(.envir) {", "  inherits(.envir$input, \"reactivevalues\") &", 
 "    inherits(.envir$output, \"shinyoutput\") &", "    inherits(.envir$session, \"ShinySession\")", 
 "}", "", "check_server_context <- function(.envir) {", "  if (!is_server_context(.envir)) {", 
 "    calling_func <- deparse(sys.calls()[[sys.nframe() - 1]])", 
@@ -754,7 +727,7 @@ learnr:::store_exercise_cache(structure(list(label = "create-population", global
 "    if (Sys.time() < release_at) {", "      return(NULL)", "    }", 
 "    solution_code_card(code, title)", "  })", "}"), chunk_opts = list(
     label = "setup", include = FALSE)), setup = NULL, chunks = list(
-    list(label = "create-population", code = "set.seed(213)\n\npopulation <- tibble(\n  student = 1:10000,\n  supports_policy = rbinom(10000, size = 1, prob = 0.58)\n)\n\npopulation %>%\n  summarise(parameter = mean(supports_policy))", 
+    list(label = "create-population", code = "set.seed(213)\n\npopulation <- tibble(value = rgamma(10000, shape = 2, rate = 0.5))\n\npopulation %>%\n  summarise(\n    population_mean = mean(value),\n    population_sd = sd(value)\n  )", 
         opts = list(label = "\"create-population\"", exercise = "TRUE"), 
         engine = "r")), code_check = NULL, error_check = NULL, 
     check = NULL, solution = NULL, tests = NULL, options = list(
@@ -774,29 +747,29 @@ learnr:::store_exercise_cache(structure(list(label = "create-population", global
         message = FALSE, render = NULL, ref.label = NULL, child = NULL, 
         engine = "r", split = FALSE, include = TRUE, purl = TRUE, 
         max.print = 1000, exercise.eval = FALSE, label = "create-population", 
-        exercise = TRUE, code = c("set.seed(213)", "", "population <- tibble(", 
-        "  student = 1:10000,", "  supports_policy = rbinom(10000, size = 1, prob = 0.58)", 
-        ")", "", "population %>%", "  summarise(parameter = mean(supports_policy))"
-        ), out.width.px = 624, out.height.px = 384, params.src = "create-population, exercise=TRUE", 
+        exercise = TRUE, code = c("set.seed(213)", "", "population <- tibble(value = rgamma(10000, shape = 2, rate = 0.5))", 
+        "", "population %>%", "  summarise(", "    population_mean = mean(value),", 
+        "    population_sd = sd(value)", "  )"), out.width.px = 624, 
+        out.height.px = 384, params.src = "create-population, exercise=TRUE", 
         fig.num = 0, exercise.df_print = "paged", exercise.checker = "NULL"), 
     engine = "r", version = "4"), class = c("r", "tutorial_exercise"
 )))
 </script>
  
 <script type="application/shiny-prerendered" data-context="server">
-`tutorial-exercise-one-sample-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-one-sample-code-editor`)), session)
-output$`tutorial-exercise-one-sample-output` <- renderUI({
-  `tutorial-exercise-one-sample-result`()
+`tutorial-exercise-population-plot-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-population-plot-code-editor`)), session)
+output$`tutorial-exercise-population-plot-output` <- renderUI({
+  `tutorial-exercise-population-plot-result`()
 })
 </script>
 
 
 <script type="application/shiny-prerendered" data-context="server">
-learnr:::store_exercise_cache(structure(list(label = "one-sample", global_setup = structure(c("library(learnr)", 
+learnr:::store_exercise_cache(structure(list(label = "population-plot", global_setup = structure(c("library(learnr)", 
 "library(tidyverse)", "library(shiny)", "", "knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)", 
 "tutorial_options(exercise.eval = FALSE)", "", "my_reveal_time <- \"2026-06-20 15:00:00\"", 
-"", "population <- tibble(", "  student = 1:10000,", "  supports_policy = rbinom(10000, size = 1, prob = 0.58)", 
-")", "", "is_server_context <- function(.envir) {", "  inherits(.envir$input, \"reactivevalues\") &", 
+"", "population <- tibble(value = rgamma(10000, shape = 2, rate = 0.5))", 
+"", "is_server_context <- function(.envir) {", "  inherits(.envir$input, \"reactivevalues\") &", 
 "    inherits(.envir$output, \"shinyoutput\") &", "    inherits(.envir$session, \"ShinySession\")", 
 "}", "", "check_server_context <- function(.envir) {", "  if (!is_server_context(.envir)) {", 
 "    calling_func <- deparse(sys.calls()[[sys.nframe() - 1]])", 
@@ -851,7 +824,103 @@ learnr:::store_exercise_cache(structure(list(label = "one-sample", global_setup 
 "    if (Sys.time() < release_at) {", "      return(NULL)", "    }", 
 "    solution_code_card(code, title)", "  })", "}"), chunk_opts = list(
     label = "setup", include = FALSE)), setup = NULL, chunks = list(
-    list(label = "one-sample", code = "set.seed(213)\n\none_sample <- population %>%\n  slice_sample(n = 80)\n\none_sample %>%\n  summarise(p_hat = mean(supports_policy))", 
+    list(label = "population-plot", code = "ggplot(population, aes(x = value)) +\n  geom_histogram(bins = 40, color = \"white\") +\n  labs(x = \"Population value\", y = \"Count\")", 
+        opts = list(label = "\"population-plot\"", exercise = "TRUE"), 
+        engine = "r")), code_check = NULL, error_check = NULL, 
+    check = NULL, solution = NULL, tests = NULL, options = list(
+        eval = FALSE, echo = TRUE, results = "markup", tidy = FALSE, 
+        tidy.opts = NULL, collapse = FALSE, prompt = FALSE, comment = NA, 
+        highlight = FALSE, size = "normalsize", background = "#F7F7F7", 
+        strip.white = TRUE, cache = 0, cache.path = "01-05-lesson_cache/html/", 
+        cache.vars = NULL, cache.lazy = TRUE, dependson = NULL, 
+        autodep = FALSE, cache.rebuild = FALSE, fig.keep = "high", 
+        fig.show = "asis", fig.align = "default", fig.path = "01-05-lesson_files/figure-html/", 
+        dev = "png", dev.args = NULL, dpi = 192, fig.ext = "png", 
+        fig.width = 6.5, fig.height = 4, fig.env = "figure", 
+        fig.cap = NULL, fig.scap = NULL, fig.lp = "fig:", fig.subcap = NULL, 
+        fig.pos = "", out.width = 624, out.height = NULL, out.extra = NULL, 
+        fig.retina = 2, external = TRUE, sanitize = FALSE, interval = 1, 
+        aniopts = "controls,loop", warning = FALSE, error = FALSE, 
+        message = FALSE, render = NULL, ref.label = NULL, child = NULL, 
+        engine = "r", split = FALSE, include = TRUE, purl = TRUE, 
+        max.print = 1000, exercise.eval = FALSE, label = "population-plot", 
+        exercise = TRUE, code = c("ggplot(population, aes(x = value)) +", 
+        "  geom_histogram(bins = 40, color = \"white\") +", "  labs(x = \"Population value\", y = \"Count\")"
+        ), out.width.px = 624, out.height.px = 384, params.src = "population-plot, exercise=TRUE", 
+        fig.num = 0, exercise.df_print = "paged", exercise.checker = "NULL"), 
+    engine = "r", version = "4"), class = c("r", "tutorial_exercise"
+)))
+</script>
+ 
+<script type="application/shiny-prerendered" data-context="server">
+`tutorial-exercise-one-sample-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-one-sample-code-editor`)), session)
+output$`tutorial-exercise-one-sample-output` <- renderUI({
+  `tutorial-exercise-one-sample-result`()
+})
+</script>
+
+
+<script type="application/shiny-prerendered" data-context="server">
+learnr:::store_exercise_cache(structure(list(label = "one-sample", global_setup = structure(c("library(learnr)", 
+"library(tidyverse)", "library(shiny)", "", "knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)", 
+"tutorial_options(exercise.eval = FALSE)", "", "my_reveal_time <- \"2026-06-20 15:00:00\"", 
+"", "population <- tibble(value = rgamma(10000, shape = 2, rate = 0.5))", 
+"", "is_server_context <- function(.envir) {", "  inherits(.envir$input, \"reactivevalues\") &", 
+"    inherits(.envir$output, \"shinyoutput\") &", "    inherits(.envir$session, \"ShinySession\")", 
+"}", "", "check_server_context <- function(.envir) {", "  if (!is_server_context(.envir)) {", 
+"    calling_func <- deparse(sys.calls()[[sys.nframe() - 1]])", 
+"    err <- paste0(\"Function `\", calling_func, \"` must be called from an Rmd chunk where `context = \\\"server\\\"`\")", 
+"    stop(err, call. = FALSE)", "  }", "}", "", "encoder_logic <- function(strip_output = FALSE) {", 
+"  p <- parent.frame()", "  check_server_context(p)", "  assign(\"strip_output\", strip_output, envir = p)", 
+"  local(", "    {", "      encoded_txt <- shiny::eventReactive(", 
+"        input$hash_generate,", "        {", "          state <- learnr:::get_tutorial_state()", 
+"          shiny::validate(shiny::need(length(state) > 0, \"No progress yet.\"))", 
+"          shiny::validate(shiny::need(nchar(input$name) > 0, \"No name entered.\"))", 
+"          shiny::validate(shiny::need(nchar(input$studentID) > 0, \"Please enter your student ID\"))", 
+"          user_state <- purrr::map_dfr(state, identity, .id = \"label\")", 
+"          user_state <- dplyr::group_by(user_state, label, type, correct)", 
+"          user_state <- dplyr::summarize(", "            user_state,", 
+"            answer = list(answer),", "            timestamp = dplyr::first(timestamp),", 
+"            .groups = \"drop\"", "          )", "          user_state <- dplyr::relocate(user_state, correct, .before = timestamp)", 
+"          user_info <- tibble(", "            label = c(\"student_name\", \"student_id\"),", 
+"            type = \"identifier\",", "            answer = as.list(c(input$name, input$studentID)),", 
+"            timestamp = format(Sys.time(), \"%Y-%m-%d %H:%M:%S %Z\", tz = \"UTC\")", 
+"          )", "          learnrhash::encode_obj(bind_rows(user_info, user_state))", 
+"        }", "      )", "      output$hash_output <- shiny::renderText(encoded_txt())", 
+"    },", "    envir = p", "  )", "}", "", "hash_encoder_ui <- {", 
+"  shiny::div(", "    \"If you have completed this tutorial and are happy with all of your\",", 
+"    \"solutions, please enter your identifying information, then click the button below to generate your hash\",", 
+"    textInput(\"name\", \"What's your name?\"),", "    textInput(\"studentID\", \"What is your student ID?\"),", 
+"    renderText({", "      input$caption", "    })", "  )", "}", 
+"", "solution_code_card <- function(code, title = \"Solution\") {", 
+"  tags$div(", "    style = paste(", "      \"margin: 1rem 0 1.25rem;\",", 
+"      \"border: 1px solid #d7e3f3;\",", "      \"border-left: 5px solid #2f6f9f;\",", 
+"      \"border-radius: 8px;\",", "      \"background: #f8fbff;\",", 
+"      \"box-shadow: 0 2px 8px rgba(31, 45, 61, 0.08);\",", "      \"overflow: hidden;\"", 
+"    ),", "    tags$div(", "      style = paste(", "        \"display: flex;\",", 
+"        \"align-items: center;\",", "        \"justify-content: space-between;\",", 
+"        \"gap: 0.75rem;\",", "        \"padding: 0.7rem 0.9rem;\",", 
+"        \"background: #eef6ff;\",", "        \"border-bottom: 1px solid #d7e3f3;\"", 
+"      ),", "      tags$strong(title, style = \"color: #1f4e79; font-size: 1rem;\"),", 
+"      tags$span(", "        \"released\",", "        style = paste(", 
+"          \"padding: 0.15rem 0.5rem;\",", "          \"border-radius: 999px;\",", 
+"          \"background: #ffffff;\",", "          \"color: #3c6478;\",", 
+"          \"font-size: 0.78rem;\",", "          \"font-weight: 600;\"", 
+"        )", "      )", "    ),", "    tags$pre(", "      style = paste(", 
+"        \"margin: 0;\",", "        \"padding: 0.9rem 1rem;\",", 
+"        \"background: #ffffff;\",", "        \"border: 0;\",", 
+"        \"white-space: pre-wrap;\",", "        \"text-align: left;\"", 
+"      ),", "      tags$code(", "        htmltools::HTML(htmltools::htmlEscape(code)),", 
+"        style = \"display: block; color: #243447; font-size: 0.95rem; line-height: 1.45;\"", 
+"      )", "    )", "  )", "}", "", "timed_solution <- function(output_id, code, title = \"Solution\",", 
+"                           reveal_time = my_reveal_time,", "                           tz = \"America/New_York\",", 
+"                           check_every_ms = 1000) {", "  p <- parent.frame()", 
+"  check_server_context(p)", "", "  p$output[[output_id]] <- shiny::renderUI({", 
+"    shiny::invalidateLater(check_every_ms, p$session)", "    release_at <- as.POSIXct(reveal_time, tz = tz)", 
+"    if (Sys.time() < release_at) {", "      return(NULL)", "    }", 
+"    solution_code_card(code, title)", "  })", "}"), chunk_opts = list(
+    label = "setup", include = FALSE)), setup = NULL, chunks = list(
+    list(label = "one-sample", code = "set.seed(213)\n\none_sample <- population %>%\n  slice_sample(n = 30)\n\none_sample %>%\n  summarise(sample_mean = mean(value))", 
         opts = list(label = "\"one-sample\"", exercise = "TRUE"), 
         engine = "r")), code_check = NULL, error_check = NULL, 
     check = NULL, solution = NULL, tests = NULL, options = list(
@@ -872,7 +941,7 @@ learnr:::store_exercise_cache(structure(list(label = "one-sample", global_setup 
         engine = "r", split = FALSE, include = TRUE, purl = TRUE, 
         max.print = 1000, exercise.eval = FALSE, label = "one-sample", 
         exercise = TRUE, code = c("set.seed(213)", "", "one_sample <- population %>%", 
-        "  slice_sample(n = 80)", "", "one_sample %>%", "  summarise(p_hat = mean(supports_policy))"
+        "  slice_sample(n = 30)", "", "one_sample %>%", "  summarise(sample_mean = mean(value))"
         ), out.width.px = 624, out.height.px = 384, params.src = "one-sample, exercise=TRUE", 
         fig.num = 0, exercise.df_print = "paged", exercise.checker = "NULL"), 
     engine = "r", version = "4"), class = c("r", "tutorial_exercise"
@@ -891,8 +960,8 @@ output$`tutorial-exercise-ex-one-small-sample-output` <- renderUI({
 learnr:::store_exercise_cache(structure(list(label = "ex-one-small-sample", global_setup = structure(c("library(learnr)", 
 "library(tidyverse)", "library(shiny)", "", "knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)", 
 "tutorial_options(exercise.eval = FALSE)", "", "my_reveal_time <- \"2026-06-20 15:00:00\"", 
-"", "population <- tibble(", "  student = 1:10000,", "  supports_policy = rbinom(10000, size = 1, prob = 0.58)", 
-")", "", "is_server_context <- function(.envir) {", "  inherits(.envir$input, \"reactivevalues\") &", 
+"", "population <- tibble(value = rgamma(10000, shape = 2, rate = 0.5))", 
+"", "is_server_context <- function(.envir) {", "  inherits(.envir$input, \"reactivevalues\") &", 
 "    inherits(.envir$output, \"shinyoutput\") &", "    inherits(.envir$session, \"ShinySession\")", 
 "}", "", "check_server_context <- function(.envir) {", "  if (!is_server_context(.envir)) {", 
 "    calling_func <- deparse(sys.calls()[[sys.nframe() - 1]])", 
@@ -977,7 +1046,7 @@ learnr:::store_exercise_cache(structure(list(label = "ex-one-small-sample", glob
 <script type="application/shiny-prerendered" data-context="server">
 timed_solution(
   "ex_one_small_sample_solution_code",
-  "set.seed(213)\n\nsmall_sample <- population %>%\n  slice_sample(n = 40)\n\nsmall_sample %>%\n  summarise(p_hat = mean(supports_policy))"
+  "set.seed(213)\n\nsmall_sample <- population %>%\n  slice_sample(n = 10)\n\nsmall_sample %>%\n  summarise(sample_mean = mean(value))"
 )
 </script>
 
@@ -993,8 +1062,8 @@ output$`tutorial-exercise-repeated-samples-output` <- renderUI({
 learnr:::store_exercise_cache(structure(list(label = "repeated-samples", global_setup = structure(c("library(learnr)", 
 "library(tidyverse)", "library(shiny)", "", "knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)", 
 "tutorial_options(exercise.eval = FALSE)", "", "my_reveal_time <- \"2026-06-20 15:00:00\"", 
-"", "population <- tibble(", "  student = 1:10000,", "  supports_policy = rbinom(10000, size = 1, prob = 0.58)", 
-")", "", "is_server_context <- function(.envir) {", "  inherits(.envir$input, \"reactivevalues\") &", 
+"", "population <- tibble(value = rgamma(10000, shape = 2, rate = 0.5))", 
+"", "is_server_context <- function(.envir) {", "  inherits(.envir$input, \"reactivevalues\") &", 
 "    inherits(.envir$output, \"shinyoutput\") &", "    inherits(.envir$session, \"ShinySession\")", 
 "}", "", "check_server_context <- function(.envir) {", "  if (!is_server_context(.envir)) {", 
 "    calling_func <- deparse(sys.calls()[[sys.nframe() - 1]])", 
@@ -1049,7 +1118,7 @@ learnr:::store_exercise_cache(structure(list(label = "repeated-samples", global_
 "    if (Sys.time() < release_at) {", "      return(NULL)", "    }", 
 "    solution_code_card(code, title)", "  })", "}"), chunk_opts = list(
     label = "setup", include = FALSE)), setup = NULL, chunks = list(
-    list(label = "repeated-samples", code = "set.seed(213)\n\nsampling_distribution <- replicate(\n  n = 1000,\n  expr = {\n    population %>%\n      slice_sample(n = 80) %>%\n      summarise(p_hat = mean(supports_policy)) %>%\n      pull(p_hat)\n  }\n)\n\nsampling_distribution <- tibble(p_hat = sampling_distribution)\n\nhead(sampling_distribution)", 
+    list(label = "repeated-samples", code = "set.seed(213)\n\nsampling_distribution <- replicate(\n  n = 1000,\n  expr = {\n    population %>%\n      slice_sample(n = 30) %>%\n      summarise(sample_mean = mean(value)) %>%\n      pull(sample_mean)\n  }\n)\n\nsampling_distribution <- tibble(sample_mean = sampling_distribution)\n\nhead(sampling_distribution)", 
         opts = list(label = "\"repeated-samples\"", exercise = "TRUE"), 
         engine = "r")), code_check = NULL, error_check = NULL, 
     check = NULL, solution = NULL, tests = NULL, options = list(
@@ -1070,9 +1139,9 @@ learnr:::store_exercise_cache(structure(list(label = "repeated-samples", global_
         engine = "r", split = FALSE, include = TRUE, purl = TRUE, 
         max.print = 1000, exercise.eval = FALSE, label = "repeated-samples", 
         exercise = TRUE, code = c("set.seed(213)", "", "sampling_distribution <- replicate(", 
-        "  n = 1000,", "  expr = {", "    population %>%", "      slice_sample(n = 80) %>%", 
-        "      summarise(p_hat = mean(supports_policy)) %>%", 
-        "      pull(p_hat)", "  }", ")", "", "sampling_distribution <- tibble(p_hat = sampling_distribution)", 
+        "  n = 1000,", "  expr = {", "    population %>%", "      slice_sample(n = 30) %>%", 
+        "      summarise(sample_mean = mean(value)) %>%", "      pull(sample_mean)", 
+        "  }", ")", "", "sampling_distribution <- tibble(sample_mean = sampling_distribution)", 
         "", "head(sampling_distribution)"), out.width.px = 624, 
         out.height.px = 384, params.src = "repeated-samples, exercise=TRUE", 
         fig.num = 0, exercise.df_print = "paged", exercise.checker = "NULL"), 
@@ -1092,8 +1161,8 @@ output$`tutorial-exercise-sampling-distribution-plot-output` <- renderUI({
 learnr:::store_exercise_cache(structure(list(label = "sampling-distribution-plot", global_setup = structure(c("library(learnr)", 
 "library(tidyverse)", "library(shiny)", "", "knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)", 
 "tutorial_options(exercise.eval = FALSE)", "", "my_reveal_time <- \"2026-06-20 15:00:00\"", 
-"", "population <- tibble(", "  student = 1:10000,", "  supports_policy = rbinom(10000, size = 1, prob = 0.58)", 
-")", "", "is_server_context <- function(.envir) {", "  inherits(.envir$input, \"reactivevalues\") &", 
+"", "population <- tibble(value = rgamma(10000, shape = 2, rate = 0.5))", 
+"", "is_server_context <- function(.envir) {", "  inherits(.envir$input, \"reactivevalues\") &", 
 "    inherits(.envir$output, \"shinyoutput\") &", "    inherits(.envir$session, \"ShinySession\")", 
 "}", "", "check_server_context <- function(.envir) {", "  if (!is_server_context(.envir)) {", 
 "    calling_func <- deparse(sys.calls()[[sys.nframe() - 1]])", 
@@ -1148,7 +1217,7 @@ learnr:::store_exercise_cache(structure(list(label = "sampling-distribution-plot
 "    if (Sys.time() < release_at) {", "      return(NULL)", "    }", 
 "    solution_code_card(code, title)", "  })", "}"), chunk_opts = list(
     label = "setup", include = FALSE)), setup = NULL, chunks = list(
-    list(label = "sampling-distribution-plot", code = "ggplot(sampling_distribution, aes(x = p_hat)) +\n  geom_histogram(binwidth = 0.025, color = \"white\") +\n  labs(x = \"Sample proportion\", y = \"Number of samples\")", 
+    list(label = "sampling-distribution-plot", code = "ggplot(sampling_distribution, aes(x = sample_mean)) +\n  geom_histogram(bins = 35, color = \"white\") +\n  labs(x = \"Sample mean\", y = \"Number of samples\")", 
         opts = list(label = "\"sampling-distribution-plot\"", 
             exercise = "TRUE"), engine = "r")), code_check = NULL, 
     error_check = NULL, check = NULL, solution = NULL, tests = NULL, 
@@ -1169,9 +1238,8 @@ learnr:::store_exercise_cache(structure(list(label = "sampling-distribution-plot
         message = FALSE, render = NULL, ref.label = NULL, child = NULL, 
         engine = "r", split = FALSE, include = TRUE, purl = TRUE, 
         max.print = 1000, exercise.eval = FALSE, label = "sampling-distribution-plot", 
-        exercise = TRUE, code = c("ggplot(sampling_distribution, aes(x = p_hat)) +", 
-        "  geom_histogram(binwidth = 0.025, color = \"white\") +", 
-        "  labs(x = \"Sample proportion\", y = \"Number of samples\")"
+        exercise = TRUE, code = c("ggplot(sampling_distribution, aes(x = sample_mean)) +", 
+        "  geom_histogram(bins = 35, color = \"white\") +", "  labs(x = \"Sample mean\", y = \"Number of samples\")"
         ), out.width.px = 624, out.height.px = 384, params.src = "sampling-distribution-plot, exercise=TRUE", 
         fig.num = 0, exercise.df_print = "paged", exercise.checker = "NULL"), 
     engine = "r", version = "4"), class = c("r", "tutorial_exercise"
@@ -1190,8 +1258,8 @@ output$`tutorial-exercise-ex-large-sampling-distribution-output` <- renderUI({
 learnr:::store_exercise_cache(structure(list(label = "ex-large-sampling-distribution", global_setup = structure(c("library(learnr)", 
 "library(tidyverse)", "library(shiny)", "", "knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)", 
 "tutorial_options(exercise.eval = FALSE)", "", "my_reveal_time <- \"2026-06-20 15:00:00\"", 
-"", "population <- tibble(", "  student = 1:10000,", "  supports_policy = rbinom(10000, size = 1, prob = 0.58)", 
-")", "", "is_server_context <- function(.envir) {", "  inherits(.envir$input, \"reactivevalues\") &", 
+"", "population <- tibble(value = rgamma(10000, shape = 2, rate = 0.5))", 
+"", "is_server_context <- function(.envir) {", "  inherits(.envir$input, \"reactivevalues\") &", 
 "    inherits(.envir$output, \"shinyoutput\") &", "    inherits(.envir$session, \"ShinySession\")", 
 "}", "", "check_server_context <- function(.envir) {", "  if (!is_server_context(.envir)) {", 
 "    calling_func <- deparse(sys.calls()[[sys.nframe() - 1]])", 
@@ -1278,7 +1346,7 @@ learnr:::store_exercise_cache(structure(list(label = "ex-large-sampling-distribu
 <script type="application/shiny-prerendered" data-context="server">
 timed_solution(
   "ex_large_sampling_distribution_solution_code",
-  "set.seed(213)\n\nsampling_distribution_200 <- replicate(\n  n = 1000,\n  expr = {\n    population %>%\n      slice_sample(n = 200) %>%\n      summarise(p_hat = mean(supports_policy)) %>%\n      pull(p_hat)\n  }\n)\n\nsampling_distribution_200 <- tibble(p_hat = sampling_distribution_200)\n\nggplot(sampling_distribution_200, aes(x = p_hat)) +\n  geom_histogram(binwidth = 0.02, color = \"white\") +\n  labs(x = \"Sample proportion\", y = \"Number of samples\")"
+  "set.seed(213)\n\nsampling_distribution_100 <- replicate(\n  n = 1000,\n  expr = {\n    population %>%\n      slice_sample(n = 100) %>%\n      summarise(sample_mean = mean(value)) %>%\n      pull(sample_mean)\n  }\n)\n\nsampling_distribution_100 <- tibble(sample_mean = sampling_distribution_100)\n\nggplot(sampling_distribution_100, aes(x = sample_mean)) +\n  geom_histogram(bins = 35, color = \"white\") +\n  labs(x = \"Sample mean\", y = \"Number of samples\")"
 )
 </script>
  
@@ -1294,8 +1362,8 @@ output$`tutorial-exercise-standard-error-output` <- renderUI({
 learnr:::store_exercise_cache(structure(list(label = "standard-error", global_setup = structure(c("library(learnr)", 
 "library(tidyverse)", "library(shiny)", "", "knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)", 
 "tutorial_options(exercise.eval = FALSE)", "", "my_reveal_time <- \"2026-06-20 15:00:00\"", 
-"", "population <- tibble(", "  student = 1:10000,", "  supports_policy = rbinom(10000, size = 1, prob = 0.58)", 
-")", "", "is_server_context <- function(.envir) {", "  inherits(.envir$input, \"reactivevalues\") &", 
+"", "population <- tibble(value = rgamma(10000, shape = 2, rate = 0.5))", 
+"", "is_server_context <- function(.envir) {", "  inherits(.envir$input, \"reactivevalues\") &", 
 "    inherits(.envir$output, \"shinyoutput\") &", "    inherits(.envir$session, \"ShinySession\")", 
 "}", "", "check_server_context <- function(.envir) {", "  if (!is_server_context(.envir)) {", 
 "    calling_func <- deparse(sys.calls()[[sys.nframe() - 1]])", 
@@ -1350,7 +1418,7 @@ learnr:::store_exercise_cache(structure(list(label = "standard-error", global_se
 "    if (Sys.time() < release_at) {", "      return(NULL)", "    }", 
 "    solution_code_card(code, title)", "  })", "}"), chunk_opts = list(
     label = "setup", include = FALSE)), setup = NULL, chunks = list(
-    list(label = "standard-error", code = "p_hat <- mean(one_sample$supports_policy)\nn <- nrow(one_sample)\n\nstandard_error <- sqrt(p_hat * (1 - p_hat) / n)\nstandard_error", 
+    list(label = "standard-error", code = "population_sd <- sd(population$value)\nn <- 30\n\nstandard_error <- population_sd / sqrt(n)\nstandard_error", 
         opts = list(label = "\"standard-error\"", exercise = "TRUE"), 
         engine = "r")), code_check = NULL, error_check = NULL, 
     check = NULL, solution = NULL, tests = NULL, options = list(
@@ -1370,8 +1438,8 @@ learnr:::store_exercise_cache(structure(list(label = "standard-error", global_se
         message = FALSE, render = NULL, ref.label = NULL, child = NULL, 
         engine = "r", split = FALSE, include = TRUE, purl = TRUE, 
         max.print = 1000, exercise.eval = FALSE, label = "standard-error", 
-        exercise = TRUE, code = c("p_hat <- mean(one_sample$supports_policy)", 
-        "n <- nrow(one_sample)", "", "standard_error <- sqrt(p_hat * (1 - p_hat) / n)", 
+        exercise = TRUE, code = c("population_sd <- sd(population$value)", 
+        "n <- 30", "", "standard_error <- population_sd / sqrt(n)", 
         "standard_error"), out.width.px = 624, out.height.px = 384, 
         params.src = "standard-error, exercise=TRUE", fig.num = 0, 
         exercise.df_print = "paged", exercise.checker = "NULL"), 
@@ -1380,19 +1448,19 @@ learnr:::store_exercise_cache(structure(list(label = "standard-error", global_se
 </script>
  
 <script type="application/shiny-prerendered" data-context="server">
-`tutorial-exercise-confidence-interval-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-confidence-interval-code-editor`)), session)
-output$`tutorial-exercise-confidence-interval-output` <- renderUI({
-  `tutorial-exercise-confidence-interval-result`()
+`tutorial-exercise-simulated-spread-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-simulated-spread-code-editor`)), session)
+output$`tutorial-exercise-simulated-spread-output` <- renderUI({
+  `tutorial-exercise-simulated-spread-result`()
 })
 </script>
 
 
 <script type="application/shiny-prerendered" data-context="server">
-learnr:::store_exercise_cache(structure(list(label = "confidence-interval", global_setup = structure(c("library(learnr)", 
+learnr:::store_exercise_cache(structure(list(label = "simulated-spread", global_setup = structure(c("library(learnr)", 
 "library(tidyverse)", "library(shiny)", "", "knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)", 
 "tutorial_options(exercise.eval = FALSE)", "", "my_reveal_time <- \"2026-06-20 15:00:00\"", 
-"", "population <- tibble(", "  student = 1:10000,", "  supports_policy = rbinom(10000, size = 1, prob = 0.58)", 
-")", "", "is_server_context <- function(.envir) {", "  inherits(.envir$input, \"reactivevalues\") &", 
+"", "population <- tibble(value = rgamma(10000, shape = 2, rate = 0.5))", 
+"", "is_server_context <- function(.envir) {", "  inherits(.envir$input, \"reactivevalues\") &", 
 "    inherits(.envir$output, \"shinyoutput\") &", "    inherits(.envir$session, \"ShinySession\")", 
 "}", "", "check_server_context <- function(.envir) {", "  if (!is_server_context(.envir)) {", 
 "    calling_func <- deparse(sys.calls()[[sys.nframe() - 1]])", 
@@ -1447,8 +1515,8 @@ learnr:::store_exercise_cache(structure(list(label = "confidence-interval", glob
 "    if (Sys.time() < release_at) {", "      return(NULL)", "    }", 
 "    solution_code_card(code, title)", "  })", "}"), chunk_opts = list(
     label = "setup", include = FALSE)), setup = NULL, chunks = list(
-    list(label = "confidence-interval", code = "lower <- p_hat - 1.96 * standard_error\nupper <- p_hat + 1.96 * standard_error\n\nc(lower, upper)", 
-        opts = list(label = "\"confidence-interval\"", exercise = "TRUE"), 
+    list(label = "simulated-spread", code = "sampling_distribution %>%\n  summarise(simulated_sd = sd(sample_mean))", 
+        opts = list(label = "\"simulated-spread\"", exercise = "TRUE"), 
         engine = "r")), code_check = NULL, error_check = NULL, 
     check = NULL, solution = NULL, tests = NULL, options = list(
         eval = FALSE, echo = TRUE, results = "markup", tidy = FALSE, 
@@ -1466,29 +1534,29 @@ learnr:::store_exercise_cache(structure(list(label = "confidence-interval", glob
         aniopts = "controls,loop", warning = FALSE, error = FALSE, 
         message = FALSE, render = NULL, ref.label = NULL, child = NULL, 
         engine = "r", split = FALSE, include = TRUE, purl = TRUE, 
-        max.print = 1000, exercise.eval = FALSE, label = "confidence-interval", 
-        exercise = TRUE, code = c("lower <- p_hat - 1.96 * standard_error", 
-        "upper <- p_hat + 1.96 * standard_error", "", "c(lower, upper)"
-        ), out.width.px = 624, out.height.px = 384, params.src = "confidence-interval, exercise=TRUE", 
+        max.print = 1000, exercise.eval = FALSE, label = "simulated-spread", 
+        exercise = TRUE, code = c("sampling_distribution %>%", 
+        "  summarise(simulated_sd = sd(sample_mean))"), out.width.px = 624, 
+        out.height.px = 384, params.src = "simulated-spread, exercise=TRUE", 
         fig.num = 0, exercise.df_print = "paged", exercise.checker = "NULL"), 
     engine = "r", version = "4"), class = c("r", "tutorial_exercise"
 )))
 </script>
  
 <script type="application/shiny-prerendered" data-context="server">
-`tutorial-exercise-ex-prop-ci-function-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-ex-prop-ci-function-code-editor`)), session)
-output$`tutorial-exercise-ex-prop-ci-function-output` <- renderUI({
-  `tutorial-exercise-ex-prop-ci-function-result`()
+`tutorial-exercise-ex-simulate-means-function-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-ex-simulate-means-function-code-editor`)), session)
+output$`tutorial-exercise-ex-simulate-means-function-output` <- renderUI({
+  `tutorial-exercise-ex-simulate-means-function-result`()
 })
 </script>
 
 
 <script type="application/shiny-prerendered" data-context="server">
-learnr:::store_exercise_cache(structure(list(label = "ex-prop-ci-function", global_setup = structure(c("library(learnr)", 
+learnr:::store_exercise_cache(structure(list(label = "ex-simulate-means-function", global_setup = structure(c("library(learnr)", 
 "library(tidyverse)", "library(shiny)", "", "knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)", 
 "tutorial_options(exercise.eval = FALSE)", "", "my_reveal_time <- \"2026-06-20 15:00:00\"", 
-"", "population <- tibble(", "  student = 1:10000,", "  supports_policy = rbinom(10000, size = 1, prob = 0.58)", 
-")", "", "is_server_context <- function(.envir) {", "  inherits(.envir$input, \"reactivevalues\") &", 
+"", "population <- tibble(value = rgamma(10000, shape = 2, rate = 0.5))", 
+"", "is_server_context <- function(.envir) {", "  inherits(.envir$input, \"reactivevalues\") &", 
 "    inherits(.envir$output, \"shinyoutput\") &", "    inherits(.envir$session, \"ShinySession\")", 
 "}", "", "check_server_context <- function(.envir) {", "  if (!is_server_context(.envir)) {", 
 "    calling_func <- deparse(sys.calls()[[sys.nframe() - 1]])", 
@@ -1543,8 +1611,8 @@ learnr:::store_exercise_cache(structure(list(label = "ex-prop-ci-function", glob
 "    if (Sys.time() < release_at) {", "      return(NULL)", "    }", 
 "    solution_code_card(code, title)", "  })", "}"), chunk_opts = list(
     label = "setup", include = FALSE)), setup = NULL, chunks = list(
-    list(label = "ex-prop-ci-function", code = "", opts = list(
-        label = "\"ex-prop-ci-function\"", exercise = "TRUE"), 
+    list(label = "ex-simulate-means-function", code = "", opts = list(
+        label = "\"ex-simulate-means-function\"", exercise = "TRUE"), 
         engine = "r")), code_check = NULL, error_check = NULL, 
     check = NULL, solution = NULL, tests = NULL, options = list(
         eval = FALSE, echo = TRUE, results = "markup", tidy = FALSE, 
@@ -1562,35 +1630,35 @@ learnr:::store_exercise_cache(structure(list(label = "ex-prop-ci-function", glob
         aniopts = "controls,loop", warning = FALSE, error = FALSE, 
         message = FALSE, render = NULL, ref.label = NULL, child = NULL, 
         engine = "r", split = FALSE, include = TRUE, purl = TRUE, 
-        max.print = 1000, exercise.eval = FALSE, label = "ex-prop-ci-function", 
+        max.print = 1000, exercise.eval = FALSE, label = "ex-simulate-means-function", 
         exercise = TRUE, code = "", out.width.px = 624, out.height.px = 384, 
-        params.src = "ex-prop-ci-function, exercise=TRUE", fig.num = 0L, 
-        exercise.df_print = "paged", exercise.checker = "NULL"), 
+        params.src = "ex-simulate-means-function, exercise=TRUE", 
+        fig.num = 0L, exercise.df_print = "paged", exercise.checker = "NULL"), 
     engine = "r", version = "4"), class = c("r", "tutorial_exercise"
 )))
 </script>
  
 <script type="application/shiny-prerendered" data-context="server">
 timed_solution(
-  "ex_prop_ci_function_solution_code",
-  "prop_ci <- function(p_hat, n) {\n  se <- sqrt(p_hat * (1 - p_hat) / n)\n  lower <- p_hat - 1.96 * se\n  upper <- p_hat + 1.96 * se\n  c(lower, upper)\n}\n\nprop_ci(p_hat = 0.60, n = 80)"
+  "ex_simulate_means_function_solution_code",
+  "simulate_means <- function(n, K) {\n  means <- replicate(\n    n = K,\n    expr = {\n      population %>%\n        slice_sample(n = n) %>%\n        summarise(sample_mean = mean(value)) %>%\n        pull(sample_mean)\n    }\n  )\n\n  tibble(sample_mean = means)\n}\n\nsimulate_means(n = 30, K = 5)"
 )
 </script>
 
 
 <script type="application/shiny-prerendered" data-context="server">
-`tutorial-exercise-p-value-example-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-p-value-example-code-editor`)), session)
-output$`tutorial-exercise-p-value-example-output` <- renderUI({
-  `tutorial-exercise-p-value-example-result`()
+`tutorial-exercise-ex-lln-clt-interpretation-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-ex-lln-clt-interpretation-code-editor`)), session)
+output$`tutorial-exercise-ex-lln-clt-interpretation-output` <- renderUI({
+  `tutorial-exercise-ex-lln-clt-interpretation-result`()
 })
 </script>
  
 <script type="application/shiny-prerendered" data-context="server">
-learnr:::store_exercise_cache(structure(list(label = "p-value-example", global_setup = structure(c("library(learnr)", 
+learnr:::store_exercise_cache(structure(list(label = "ex-lln-clt-interpretation", global_setup = structure(c("library(learnr)", 
 "library(tidyverse)", "library(shiny)", "", "knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)", 
 "tutorial_options(exercise.eval = FALSE)", "", "my_reveal_time <- \"2026-06-20 15:00:00\"", 
-"", "population <- tibble(", "  student = 1:10000,", "  supports_policy = rbinom(10000, size = 1, prob = 0.58)", 
-")", "", "is_server_context <- function(.envir) {", "  inherits(.envir$input, \"reactivevalues\") &", 
+"", "population <- tibble(value = rgamma(10000, shape = 2, rate = 0.5))", 
+"", "is_server_context <- function(.envir) {", "  inherits(.envir$input, \"reactivevalues\") &", 
 "    inherits(.envir$output, \"shinyoutput\") &", "    inherits(.envir$session, \"ShinySession\")", 
 "}", "", "check_server_context <- function(.envir) {", "  if (!is_server_context(.envir)) {", 
 "    calling_func <- deparse(sys.calls()[[sys.nframe() - 1]])", 
@@ -1645,8 +1713,8 @@ learnr:::store_exercise_cache(structure(list(label = "p-value-example", global_s
 "    if (Sys.time() < release_at) {", "      return(NULL)", "    }", 
 "    solution_code_card(code, title)", "  })", "}"), chunk_opts = list(
     label = "setup", include = FALSE)), setup = NULL, chunks = list(
-    list(label = "p-value-example", code = "null_p <- 0.50\nse_null <- sqrt(null_p * (1 - null_p) / n)\nz <- (p_hat - null_p) / se_null\np_value <- 2 * (1 - pnorm(abs(z)))\n\np_value", 
-        opts = list(label = "\"p-value-example\"", exercise = "TRUE"), 
+    list(label = "ex-lln-clt-interpretation", code = "", opts = list(
+        label = "\"ex-lln-clt-interpretation\"", exercise = "TRUE"), 
         engine = "r")), code_check = NULL, error_check = NULL, 
     check = NULL, solution = NULL, tests = NULL, options = list(
         eval = FALSE, echo = TRUE, results = "markup", tidy = FALSE, 
@@ -1664,125 +1732,28 @@ learnr:::store_exercise_cache(structure(list(label = "p-value-example", global_s
         aniopts = "controls,loop", warning = FALSE, error = FALSE, 
         message = FALSE, render = NULL, ref.label = NULL, child = NULL, 
         engine = "r", split = FALSE, include = TRUE, purl = TRUE, 
-        max.print = 1000, exercise.eval = FALSE, label = "p-value-example", 
-        exercise = TRUE, code = c("null_p <- 0.50", "se_null <- sqrt(null_p * (1 - null_p) / n)", 
-        "z <- (p_hat - null_p) / se_null", "p_value <- 2 * (1 - pnorm(abs(z)))", 
-        "", "p_value"), out.width.px = 624, out.height.px = 384, 
-        params.src = "p-value-example, exercise=TRUE", fig.num = 0, 
-        exercise.df_print = "paged", exercise.checker = "NULL"), 
-    engine = "r", version = "4"), class = c("r", "tutorial_exercise"
-)))
-</script>
-
-
-<script type="application/shiny-prerendered" data-context="server">
-`tutorial-exercise-ex-ci-interpretation-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-ex-ci-interpretation-code-editor`)), session)
-output$`tutorial-exercise-ex-ci-interpretation-output` <- renderUI({
-  `tutorial-exercise-ex-ci-interpretation-result`()
-})
-</script>
- 
-<script type="application/shiny-prerendered" data-context="server">
-learnr:::store_exercise_cache(structure(list(label = "ex-ci-interpretation", global_setup = structure(c("library(learnr)", 
-"library(tidyverse)", "library(shiny)", "", "knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)", 
-"tutorial_options(exercise.eval = FALSE)", "", "my_reveal_time <- \"2026-06-20 15:00:00\"", 
-"", "population <- tibble(", "  student = 1:10000,", "  supports_policy = rbinom(10000, size = 1, prob = 0.58)", 
-")", "", "is_server_context <- function(.envir) {", "  inherits(.envir$input, \"reactivevalues\") &", 
-"    inherits(.envir$output, \"shinyoutput\") &", "    inherits(.envir$session, \"ShinySession\")", 
-"}", "", "check_server_context <- function(.envir) {", "  if (!is_server_context(.envir)) {", 
-"    calling_func <- deparse(sys.calls()[[sys.nframe() - 1]])", 
-"    err <- paste0(\"Function `\", calling_func, \"` must be called from an Rmd chunk where `context = \\\"server\\\"`\")", 
-"    stop(err, call. = FALSE)", "  }", "}", "", "encoder_logic <- function(strip_output = FALSE) {", 
-"  p <- parent.frame()", "  check_server_context(p)", "  assign(\"strip_output\", strip_output, envir = p)", 
-"  local(", "    {", "      encoded_txt <- shiny::eventReactive(", 
-"        input$hash_generate,", "        {", "          state <- learnr:::get_tutorial_state()", 
-"          shiny::validate(shiny::need(length(state) > 0, \"No progress yet.\"))", 
-"          shiny::validate(shiny::need(nchar(input$name) > 0, \"No name entered.\"))", 
-"          shiny::validate(shiny::need(nchar(input$studentID) > 0, \"Please enter your student ID\"))", 
-"          user_state <- purrr::map_dfr(state, identity, .id = \"label\")", 
-"          user_state <- dplyr::group_by(user_state, label, type, correct)", 
-"          user_state <- dplyr::summarize(", "            user_state,", 
-"            answer = list(answer),", "            timestamp = dplyr::first(timestamp),", 
-"            .groups = \"drop\"", "          )", "          user_state <- dplyr::relocate(user_state, correct, .before = timestamp)", 
-"          user_info <- tibble(", "            label = c(\"student_name\", \"student_id\"),", 
-"            type = \"identifier\",", "            answer = as.list(c(input$name, input$studentID)),", 
-"            timestamp = format(Sys.time(), \"%Y-%m-%d %H:%M:%S %Z\", tz = \"UTC\")", 
-"          )", "          learnrhash::encode_obj(bind_rows(user_info, user_state))", 
-"        }", "      )", "      output$hash_output <- shiny::renderText(encoded_txt())", 
-"    },", "    envir = p", "  )", "}", "", "hash_encoder_ui <- {", 
-"  shiny::div(", "    \"If you have completed this tutorial and are happy with all of your\",", 
-"    \"solutions, please enter your identifying information, then click the button below to generate your hash\",", 
-"    textInput(\"name\", \"What's your name?\"),", "    textInput(\"studentID\", \"What is your student ID?\"),", 
-"    renderText({", "      input$caption", "    })", "  )", "}", 
-"", "solution_code_card <- function(code, title = \"Solution\") {", 
-"  tags$div(", "    style = paste(", "      \"margin: 1rem 0 1.25rem;\",", 
-"      \"border: 1px solid #d7e3f3;\",", "      \"border-left: 5px solid #2f6f9f;\",", 
-"      \"border-radius: 8px;\",", "      \"background: #f8fbff;\",", 
-"      \"box-shadow: 0 2px 8px rgba(31, 45, 61, 0.08);\",", "      \"overflow: hidden;\"", 
-"    ),", "    tags$div(", "      style = paste(", "        \"display: flex;\",", 
-"        \"align-items: center;\",", "        \"justify-content: space-between;\",", 
-"        \"gap: 0.75rem;\",", "        \"padding: 0.7rem 0.9rem;\",", 
-"        \"background: #eef6ff;\",", "        \"border-bottom: 1px solid #d7e3f3;\"", 
-"      ),", "      tags$strong(title, style = \"color: #1f4e79; font-size: 1rem;\"),", 
-"      tags$span(", "        \"released\",", "        style = paste(", 
-"          \"padding: 0.15rem 0.5rem;\",", "          \"border-radius: 999px;\",", 
-"          \"background: #ffffff;\",", "          \"color: #3c6478;\",", 
-"          \"font-size: 0.78rem;\",", "          \"font-weight: 600;\"", 
-"        )", "      )", "    ),", "    tags$pre(", "      style = paste(", 
-"        \"margin: 0;\",", "        \"padding: 0.9rem 1rem;\",", 
-"        \"background: #ffffff;\",", "        \"border: 0;\",", 
-"        \"white-space: pre-wrap;\",", "        \"text-align: left;\"", 
-"      ),", "      tags$code(", "        htmltools::HTML(htmltools::htmlEscape(code)),", 
-"        style = \"display: block; color: #243447; font-size: 0.95rem; line-height: 1.45;\"", 
-"      )", "    )", "  )", "}", "", "timed_solution <- function(output_id, code, title = \"Solution\",", 
-"                           reveal_time = my_reveal_time,", "                           tz = \"America/New_York\",", 
-"                           check_every_ms = 1000) {", "  p <- parent.frame()", 
-"  check_server_context(p)", "", "  p$output[[output_id]] <- shiny::renderUI({", 
-"    shiny::invalidateLater(check_every_ms, p$session)", "    release_at <- as.POSIXct(reveal_time, tz = tz)", 
-"    if (Sys.time() < release_at) {", "      return(NULL)", "    }", 
-"    solution_code_card(code, title)", "  })", "}"), chunk_opts = list(
-    label = "setup", include = FALSE)), setup = NULL, chunks = list(
-    list(label = "ex-ci-interpretation", code = "", opts = list(
-        label = "\"ex-ci-interpretation\"", exercise = "TRUE"), 
-        engine = "r")), code_check = NULL, error_check = NULL, 
-    check = NULL, solution = NULL, tests = NULL, options = list(
-        eval = FALSE, echo = TRUE, results = "markup", tidy = FALSE, 
-        tidy.opts = NULL, collapse = FALSE, prompt = FALSE, comment = NA, 
-        highlight = FALSE, size = "normalsize", background = "#F7F7F7", 
-        strip.white = TRUE, cache = 0, cache.path = "01-05-lesson_cache/html/", 
-        cache.vars = NULL, cache.lazy = TRUE, dependson = NULL, 
-        autodep = FALSE, cache.rebuild = FALSE, fig.keep = "high", 
-        fig.show = "asis", fig.align = "default", fig.path = "01-05-lesson_files/figure-html/", 
-        dev = "png", dev.args = NULL, dpi = 192, fig.ext = "png", 
-        fig.width = 6.5, fig.height = 4, fig.env = "figure", 
-        fig.cap = NULL, fig.scap = NULL, fig.lp = "fig:", fig.subcap = NULL, 
-        fig.pos = "", out.width = 624, out.height = NULL, out.extra = NULL, 
-        fig.retina = 2, external = TRUE, sanitize = FALSE, interval = 1, 
-        aniopts = "controls,loop", warning = FALSE, error = FALSE, 
-        message = FALSE, render = NULL, ref.label = NULL, child = NULL, 
-        engine = "r", split = FALSE, include = TRUE, purl = TRUE, 
-        max.print = 1000, exercise.eval = FALSE, label = "ex-ci-interpretation", 
+        max.print = 1000, exercise.eval = FALSE, label = "ex-lln-clt-interpretation", 
         exercise = TRUE, code = "", out.width.px = 624, out.height.px = 384, 
-        params.src = "ex-ci-interpretation, exercise=TRUE", fig.num = 0L, 
-        exercise.df_print = "paged", exercise.checker = "NULL"), 
+        params.src = "ex-lln-clt-interpretation, exercise=TRUE", 
+        fig.num = 0L, exercise.df_print = "paged", exercise.checker = "NULL"), 
     engine = "r", version = "4"), class = c("r", "tutorial_exercise"
 )))
 </script>
 
 
 <script type="application/shiny-prerendered" data-context="server">
-`tutorial-exercise-ex-final-ci-width-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-ex-final-ci-width-code-editor`)), session)
-output$`tutorial-exercise-ex-final-ci-width-output` <- renderUI({
-  `tutorial-exercise-ex-final-ci-width-result`()
+`tutorial-exercise-ex-final-sample-size-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-ex-final-sample-size-code-editor`)), session)
+output$`tutorial-exercise-ex-final-sample-size-output` <- renderUI({
+  `tutorial-exercise-ex-final-sample-size-result`()
 })
 </script>
  
 <script type="application/shiny-prerendered" data-context="server">
-learnr:::store_exercise_cache(structure(list(label = "ex-final-ci-width", global_setup = structure(c("library(learnr)", 
+learnr:::store_exercise_cache(structure(list(label = "ex-final-sample-size", global_setup = structure(c("library(learnr)", 
 "library(tidyverse)", "library(shiny)", "", "knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)", 
 "tutorial_options(exercise.eval = FALSE)", "", "my_reveal_time <- \"2026-06-20 15:00:00\"", 
-"", "population <- tibble(", "  student = 1:10000,", "  supports_policy = rbinom(10000, size = 1, prob = 0.58)", 
-")", "", "is_server_context <- function(.envir) {", "  inherits(.envir$input, \"reactivevalues\") &", 
+"", "population <- tibble(value = rgamma(10000, shape = 2, rate = 0.5))", 
+"", "is_server_context <- function(.envir) {", "  inherits(.envir$input, \"reactivevalues\") &", 
 "    inherits(.envir$output, \"shinyoutput\") &", "    inherits(.envir$session, \"ShinySession\")", 
 "}", "", "check_server_context <- function(.envir) {", "  if (!is_server_context(.envir)) {", 
 "    calling_func <- deparse(sys.calls()[[sys.nframe() - 1]])", 
@@ -1837,8 +1808,8 @@ learnr:::store_exercise_cache(structure(list(label = "ex-final-ci-width", global
 "    if (Sys.time() < release_at) {", "      return(NULL)", "    }", 
 "    solution_code_card(code, title)", "  })", "}"), chunk_opts = list(
     label = "setup", include = FALSE)), setup = NULL, chunks = list(
-    list(label = "ex-final-ci-width", code = "sample_sizes <- c(40, 80, 160, 320)", 
-        opts = list(label = "\"ex-final-ci-width\"", exercise = "TRUE"), 
+    list(label = "ex-final-sample-size", code = "sample_sizes <- c(10, 30, 100)", 
+        opts = list(label = "\"ex-final-sample-size\"", exercise = "TRUE"), 
         engine = "r")), code_check = NULL, error_check = NULL, 
     check = NULL, solution = NULL, tests = NULL, options = list(
         eval = FALSE, echo = TRUE, results = "markup", tidy = FALSE, 
@@ -1856,9 +1827,9 @@ learnr:::store_exercise_cache(structure(list(label = "ex-final-ci-width", global
         aniopts = "controls,loop", warning = FALSE, error = FALSE, 
         message = FALSE, render = NULL, ref.label = NULL, child = NULL, 
         engine = "r", split = FALSE, include = TRUE, purl = TRUE, 
-        max.print = 1000, exercise.eval = FALSE, label = "ex-final-ci-width", 
-        exercise = TRUE, code = "sample_sizes <- c(40, 80, 160, 320)", 
-        out.width.px = 624, out.height.px = 384, params.src = "ex-final-ci-width, exercise=TRUE", 
+        max.print = 1000, exercise.eval = FALSE, label = "ex-final-sample-size", 
+        exercise = TRUE, code = "sample_sizes <- c(10, 30, 100)", 
+        out.width.px = 624, out.height.px = 384, params.src = "ex-final-sample-size, exercise=TRUE", 
         fig.num = 0, exercise.df_print = "paged", exercise.checker = "NULL"), 
     engine = "r", version = "4"), class = c("r", "tutorial_exercise"
 )))
@@ -1867,8 +1838,8 @@ learnr:::store_exercise_cache(structure(list(label = "ex-final-ci-width", global
 
 <script type="application/shiny-prerendered" data-context="server">
 timed_solution(
-  "ex_final_ci_width_solution_code",
-  "prop_ci <- function(p_hat, n) {\n  se <- sqrt(p_hat * (1 - p_hat) / n)\n  lower <- p_hat - 1.96 * se\n  upper <- p_hat + 1.96 * se\n  c(lower, upper)\n}\n\nsample_sizes <- c(40, 80, 160, 320)\n\nci_widths <- tibble(n = sample_sizes) %>%\n  rowwise() %>%\n  mutate(width = diff(prop_ci(0.58, n))) %>%\n  ungroup()\n\nci_widths"
+  "ex_final_sample_size_solution_code",
+  "simulate_means <- function(n, K) {\n  means <- replicate(\n    n = K,\n    expr = {\n      population %>%\n        slice_sample(n = n) %>%\n        summarise(sample_mean = mean(value)) %>%\n        pull(sample_mean)\n    }\n  )\n\n  tibble(sample_mean = means)\n}\n\nsample_sizes <- c(10, 30, 100)\n\nsummary_table <- purrr::map_dfr(\n  sample_sizes,\n  ~ simulate_means(n = .x, K = 1000) %>%\n    summarise(\n      n = .x,\n      center = mean(sample_mean),\n      spread = sd(sample_mean)\n    )\n)\n\nsummary_table"
 )
 </script>
  
@@ -1897,8 +1868,8 @@ encoder_logic()
 
 <!-- begin doc-metadata -->
 <div id="doc-metadata">
-<h1 class="title toc-ignore" style="display:none;">Inference: 5 -
-Simulation, Sampling Distributions, and Inference</h1>
+<h1 class="title toc-ignore" style="display:none;">Tutorial 5: LLN, CLT,
+and Sampling Distributions</h1>
 </div>
 <!-- end doc-metadata -->
 

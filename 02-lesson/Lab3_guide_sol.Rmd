@@ -1,5 +1,5 @@
 ---
-title: "MA213 Basic Statistics and Probability - Lab3 Guide"
+title: "MA213 Basic Statistics and Probability - Tutorial 2 Supplement"
 link-citations: true
 output:
   html_document:
@@ -13,7 +13,7 @@ library(tidyr)
 library(readr)
 ```
 
-## **Lab 3:** Data transformation
+## **Tutorial 2 / Lab 2 Prep:** Data transformation
 
 ------------------------------------------------------------------------
 

@@ -1,0 +1,371 @@
+---
+title: "Tutorial 7: Bayesian Updating"
+output:
+  learnr::tutorial:
+    progressive: true
+    allow_skip: true
+runtime: shiny_prerendered
+editor_options:
+  markdown:
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+library(learnr)
+library(tidyverse)
+library(shiny)
+
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+tutorial_options(exercise.eval = FALSE)
+
+my_reveal_time <- "2026-06-20 15:00:00"
+
+theta_grid <- seq(0, 1, length.out = 101)
+
+is_server_context <- function(.envir) {
+  inherits(.envir$input, "reactivevalues") &
+    inherits(.envir$output, "shinyoutput") &
+    inherits(.envir$session, "ShinySession")
+}
+
+check_server_context <- function(.envir) {
+  if (!is_server_context(.envir)) {
+    calling_func <- deparse(sys.calls()[[sys.nframe() - 1]])
+    err <- paste0("Function `", calling_func, "` must be called from an Rmd chunk where `context = \"server\"`")
+    stop(err, call. = FALSE)
+  }
+}
+
+encoder_logic <- function(strip_output = FALSE) {
+  p <- parent.frame()
+  check_server_context(p)
+  assign("strip_output", strip_output, envir = p)
+  local(
+    {
+      encoded_txt <- shiny::eventReactive(
+        input$hash_generate,
+        {
+          state <- learnr:::get_tutorial_state()
+          shiny::validate(shiny::need(length(state) > 0, "No progress yet."))
+          shiny::validate(shiny::need(nchar(input$name) > 0, "No name entered."))
+          shiny::validate(shiny::need(nchar(input$studentID) > 0, "Please enter your student ID"))
+          user_state <- purrr::map_dfr(state, identity, .id = "label")
+          user_state <- dplyr::group_by(user_state, label, type, correct)
+          user_state <- dplyr::summarize(
+            user_state,
+            answer = list(answer),
+            timestamp = dplyr::first(timestamp),
+            .groups = "drop"
+          )
+          user_state <- dplyr::relocate(user_state, correct, .before = timestamp)
+          user_info <- tibble(
+            label = c("student_name", "student_id"),
+            type = "identifier",
+            answer = as.list(c(input$name, input$studentID)),
+            timestamp = format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z", tz = "UTC")
+          )
+          learnrhash::encode_obj(bind_rows(user_info, user_state))
+        }
+      )
+      output$hash_output <- shiny::renderText(encoded_txt())
+    },
+    envir = p
+  )
+}
+
+hash_encoder_ui <- {
+  shiny::div(
+    "If you have completed this tutorial and are happy with all of your",
+    "solutions, please enter your identifying information, then click the button below to generate your hash",
+    textInput("name", "What's your name?"),
+    textInput("studentID", "What is your student ID?"),
+    renderText({
+      input$caption
+    })
+  )
+}
+
+solution_code_card <- function(code, title = "Solution") {
+  tags$div(
+    style = paste(
+      "margin: 1rem 0 1.25rem;",
+      "border: 1px solid #d7e3f3;",
+      "border-left: 5px solid #2f6f9f;",
+      "border-radius: 8px;",
+      "background: #f8fbff;",
+      "box-shadow: 0 2px 8px rgba(31, 45, 61, 0.08);",
+      "overflow: hidden;"
+    ),
+    tags$div(
+      style = paste(
+        "display: flex;",
+        "align-items: center;",
+        "justify-content: space-between;",
+        "gap: 0.75rem;",
+        "padding: 0.7rem 0.9rem;",
+        "background: #eef6ff;",
+        "border-bottom: 1px solid #d7e3f3;"
+      ),
+      tags$strong(title, style = "color: #1f4e79; font-size: 1rem;"),
+      tags$span(
+        "released",
+        style = paste(
+          "padding: 0.15rem 0.5rem;",
+          "border-radius: 999px;",
+          "background: #ffffff;",
+          "color: #3c6478;",
+          "font-size: 0.78rem;",
+          "font-weight: 600;"
+        )
+      )
+    ),
+    tags$pre(
+      style = paste(
+        "margin: 0;",
+        "padding: 0.9rem 1rem;",
+        "background: #ffffff;",
+        "border: 0;",
+        "white-space: pre-wrap;",
+        "text-align: left;"
+      ),
+      tags$code(
+        htmltools::HTML(htmltools::htmlEscape(code)),
+        style = "display: block; color: #243447; font-size: 0.95rem; line-height: 1.45;"
+      )
+    )
+  )
+}
+
+timed_solution <- function(output_id, code, title = "Solution",
+                           reveal_time = my_reveal_time,
+                           tz = "America/New_York",
+                           check_every_ms = 1000) {
+  p <- parent.frame()
+  check_server_context(p)
+
+  p$output[[output_id]] <- shiny::renderUI({
+    shiny::invalidateLater(check_every_ms, p$session)
+    release_at <- as.POSIXct(reveal_time, tz = tz)
+    if (Sys.time() < release_at) {
+      return(NULL)
+    }
+    solution_code_card(code, title)
+  })
+}
+```
+
+## Welcome
+
+Hello, and welcome to **Bayesian Updating**!
+
+This tutorial is preparation for **Lab 7**. In Lab 7 you will use
+Bayes' rule, likelihoods, priors, and posterior distributions to explain
+how evidence updates belief.
+
+Our learning goals are to:
+
+- use Bayes' rule with a small probability table;
+- compute a likelihood for observed successes and failures;
+- build a posterior distribution on a grid;
+- compare weak and strong priors;
+- describe Bayesian and frequentist conclusions in different language.
+
+## Packages
+
+```{r load-packages, exercise=TRUE}
+library(dplyr)
+library(ggplot2)
+```
+
+## Bayes' Rule with Counts
+
+Suppose 1% of people have a condition. A test is positive for 95% of
+people with the condition and 10% of people without it.
+
+```{r diagnostic-counts, exercise=TRUE}
+diagnostic_table <- tibble(
+  group = c("condition", "no_condition"),
+  people = c(100, 9900),
+  positive_rate = c(0.95, 0.10)
+) %>%
+  mutate(
+    positive = people * positive_rate,
+    negative = people - positive
+  )
+
+diagnostic_table
+```
+
+```{r posterior-diagnostic, exercise=TRUE}
+diagnostic_table %>%
+  summarise(
+    posterior_condition_given_positive =
+      positive[group == "condition"] / sum(positive)
+  )
+```
+
+## Your Turn 1
+
+Change the false positive rate from 10% to 5%. What happens to the
+posterior probability of having the condition after a positive test?
+
+```{r ex-false-positive, exercise=TRUE}
+
+```
+
+```{r ex-false-positive-hint-1}
+# Change positive_rate for the no_condition row from 0.10 to 0.05.
+```
+
+```{r, context="server", echo=FALSE}
+timed_solution(
+  "ex_false_positive_solution_code",
+  "diagnostic_table <- tibble(\n  group = c(\"condition\", \"no_condition\"),\n  people = c(100, 9900),\n  positive_rate = c(0.95, 0.05)\n) %>%\n  mutate(\n    positive = people * positive_rate,\n    negative = people - positive\n  )\n\ndiagnostic_table %>%\n  summarise(\n    posterior_condition_given_positive =\n      positive[group == \"condition\"] / sum(positive)\n  )"
+)
+```
+
+```{r ex-false-positive-solution-ui, echo=FALSE}
+uiOutput("ex_false_positive_solution_code")
+```
+
+## A Grid Posterior
+
+Now suppose a coin lands heads 8 times in 10 flips. We will estimate
+the probability of heads, called `theta`, using a grid of possible
+values.
+
+```{r grid-prior, exercise=TRUE}
+theta_grid <- seq(0, 1, length.out = 101)
+
+coin_grid <- tibble(
+  theta = theta_grid,
+  prior = 1
+)
+
+coin_grid
+```
+
+```{r likelihood, exercise=TRUE}
+heads <- 8
+flips <- 10
+
+coin_grid <- coin_grid %>%
+  mutate(
+    likelihood = dbinom(heads, size = flips, prob = theta),
+    unscaled_posterior = prior * likelihood,
+    posterior = unscaled_posterior / sum(unscaled_posterior)
+  )
+
+coin_grid
+```
+
+```{r posterior-plot, exercise=TRUE}
+ggplot(coin_grid, aes(x = theta, y = posterior)) +
+  geom_col(width = 0.01) +
+  labs(x = "Possible value of theta", y = "Posterior probability")
+```
+
+## Posterior Summaries
+
+```{r posterior-summary, exercise=TRUE}
+coin_grid %>%
+  summarise(
+    posterior_mean = sum(theta * posterior),
+    posterior_probability_theta_above_half = sum(posterior[theta > 0.5])
+  )
+```
+
+## Your Turn 2
+
+Rebuild the posterior for 14 heads in 20 flips. Compute the posterior
+mean.
+
+```{r ex-more-data, exercise=TRUE}
+heads <- 14
+flips <- 20
+```
+
+```{r ex-more-data-hint-1}
+# Reuse the likelihood, unscaled posterior, and posterior calculations.
+```
+
+```{r, context="server", echo=FALSE}
+timed_solution(
+  "ex_more_data_solution_code",
+  "heads <- 14\nflips <- 20\n\ncoin_grid <- tibble(theta = theta_grid, prior = 1) %>%\n  mutate(\n    likelihood = dbinom(heads, size = flips, prob = theta),\n    unscaled_posterior = prior * likelihood,\n    posterior = unscaled_posterior / sum(unscaled_posterior)\n  )\n\ncoin_grid %>%\n  summarise(posterior_mean = sum(theta * posterior))"
+)
+```
+
+```{r ex-more-data-solution-ui, echo=FALSE}
+uiOutput("ex_more_data_solution_code")
+```
+
+## Compare Priors
+
+A stronger prior can pull the posterior toward the values the prior
+favored, especially when the amount of data is small.
+
+```{r compare-priors, exercise=TRUE}
+prior_comparison <- tibble(
+  theta = rep(theta_grid, times = 2),
+  prior_type = rep(c("uniform", "skeptical"), each = length(theta_grid)),
+  prior = c(
+    rep(1, length(theta_grid)),
+    dbeta(theta_grid, shape1 = 20, shape2 = 20)
+  )
+) %>%
+  group_by(prior_type) %>%
+  mutate(
+    likelihood = dbinom(8, size = 10, prob = theta),
+    posterior = prior * likelihood / sum(prior * likelihood)
+  ) %>%
+  ungroup()
+
+ggplot(prior_comparison, aes(x = theta, y = posterior, color = prior_type)) +
+  geom_line() +
+  labs(x = "Possible value of theta", y = "Posterior probability")
+```
+
+## Interpretation Check
+
+In one or two sentences, explain why two people can use the same data
+but get different posterior distributions.
+
+```{r ex-prior-interpretation, exercise=TRUE}
+
+```
+
+## Final Task
+
+Use a uniform prior and data with 18 heads in 30 flips. Plot the
+posterior and compute the posterior probability that `theta > 0.5`.
+Then write one sentence interpreting the probability.
+
+```{r ex-final-posterior, exercise=TRUE}
+
+```
+
+```{r ex-final-posterior-hint-1}
+# Set heads <- 18 and flips <- 30, then reuse the grid posterior pattern.
+```
+
+```{r, context="server", echo=FALSE}
+timed_solution(
+  "ex_final_posterior_solution_code",
+  "heads <- 18\nflips <- 30\n\nfinal_grid <- tibble(theta = theta_grid, prior = 1) %>%\n  mutate(\n    likelihood = dbinom(heads, size = flips, prob = theta),\n    posterior = prior * likelihood / sum(prior * likelihood)\n  )\n\nggplot(final_grid, aes(x = theta, y = posterior)) +\n  geom_col(width = 0.01) +\n  labs(x = \"Possible value of theta\", y = \"Posterior probability\")\n\nfinal_grid %>%\n  summarise(probability_theta_above_half = sum(posterior[theta > 0.5]))"
+)
+```
+
+```{r ex-final-posterior-solution-ui, echo=FALSE}
+uiOutput("ex_final_posterior_solution_code")
+```
+
+## Submit
+
+```{r, echo=FALSE, context="server"}
+encoder_logic()
+```
+
+```{r encode, echo=FALSE}
+learnrhash::encoder_ui(ui_before = hash_encoder_ui)
+```

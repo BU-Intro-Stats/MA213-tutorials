@@ -1,5 +1,5 @@
 ---
-title: "Modeling: 6 - Linear Modeling Workflow"
+title: "Tutorial 6: Confidence Intervals and Hypothesis Tests"
 output:
   learnr::tutorial:
     progressive: true
@@ -20,8 +20,17 @@ tutorial_options(exercise.eval = FALSE)
 
 my_reveal_time <- "2026-06-20 15:00:00"
 
-air_model_data <- as_tibble(airquality) %>%
-  drop_na(Ozone, Temp, Wind, Solar.R)
+population <- tibble(
+  person = 1:10000,
+  supports_policy = rbinom(10000, size = 1, prob = 0.58)
+)
+
+prop_ci <- function(p_hat, n) {
+  se <- sqrt(p_hat * (1 - p_hat) / n)
+  lower <- p_hat - 1.96 * se
+  upper <- p_hat + 1.96 * se
+  c(lower, upper)
+}
 
 is_server_context <- function(.envir) {
   inherits(.envir$input, "reactivevalues") &
@@ -157,231 +166,220 @@ timed_solution <- function(output_id, code, title = "Solution",
 
 ## Welcome
 
-Hello, and welcome to **Linear Modeling Workflow**!
+Hello, and welcome to **Confidence Intervals and Hypothesis Tests**!
 
-In this tutorial we will fit and interpret a simple linear model. The
-coding goal is to use `lm()` and supporting plots. The statistical goal
-is to explain what a model says in context and what it does not prove.
+This tutorial is preparation for **Lab 6**. In Lab 6 you will compare
+confidence intervals and hypothesis tests, simulate confidence interval
+coverage, and build a chi-square test of independence.
 
 Our learning goals are to:
 
-- make an exploratory scatterplot before modeling;
-- fit a simple linear model with `lm()`;
-- interpret the intercept and slope in context;
-- add a fitted line to a scatterplot;
-- inspect residuals and describe model limitations.
+- compute a sample proportion;
+- construct and interpret a confidence interval;
+- state and test a null hypothesis for one proportion;
+- simulate confidence interval coverage;
+- organize categorical data for a chi-square test.
 
 ## Packages
 
 ```{r load-packages, exercise=TRUE}
 library(dplyr)
 library(ggplot2)
-library(tidyr)
 ```
 
-## Prepare the Data
+## A Simulated Population
 
-We will use the built-in `airquality` data. To keep the modeling
-examples simple, we will remove rows missing `Ozone`, `Temp`, `Wind`, or
-`Solar.R`.
+Imagine a campus survey where each person either supports a proposed
+policy or does not support it. The variable `supports_policy` is 1 for
+support and 0 for no support.
 
-```{r prepare-data, exercise=TRUE}
-air_model_data <- as_tibble(airquality) %>%
-  drop_na(Ozone, Temp, Wind, Solar.R)
+```{r create-population, exercise=TRUE}
+set.seed(213)
 
-glimpse(air_model_data)
+population <- tibble(
+  person = 1:10000,
+  supports_policy = rbinom(10000, size = 1, prob = 0.58)
+)
+
+population %>%
+  summarise(parameter = mean(supports_policy))
 ```
 
-## Explore Before Modeling
+## Take One Sample
 
-Before fitting a model, plot the response and explanatory variable. We
-will model `Ozone` using `Temp`.
+```{r one-sample, exercise=TRUE}
+set.seed(213)
 
-```{r exploratory-scatterplot, exercise=TRUE}
-ggplot(air_model_data, aes(x = Temp, y = Ozone)) +
-  geom_point() +
-  labs(x = "Temperature", y = "Ozone")
+one_sample <- population %>%
+  slice_sample(n = 80)
+
+one_sample %>%
+  summarise(p_hat = mean(supports_policy))
 ```
 
-## Fit a Linear Model
+## Confidence Interval
 
-The formula `Ozone ~ Temp` means:
+For one proportion, the standard error is:
 
-```         
-response variable ~ explanatory variable
+$$
+SE = \sqrt{\frac{\hat{p}(1 - \hat{p})}{n}}
+$$
+
+```{r confidence-interval, exercise=TRUE}
+p_hat <- mean(one_sample$supports_policy)
+n <- nrow(one_sample)
+standard_error <- sqrt(p_hat * (1 - p_hat) / n)
+
+lower <- p_hat - 1.96 * standard_error
+upper <- p_hat + 1.96 * standard_error
+
+c(lower, upper)
 ```
-
-```{r fit-model, exercise=TRUE}
-ozone_temp_model <- lm(Ozone ~ Temp, data = air_model_data)
-
-summary(ozone_temp_model)
-```
-
-## Model Coefficients
-
-```{r model-coefficients, exercise=TRUE}
-coef(ozone_temp_model)
-```
-
-The intercept is the predicted ozone level when temperature is 0 degrees
-Fahrenheit. The slope is the predicted change in ozone level for a
-1-degree increase in temperature.
 
 ## Your Turn 1
 
-Fit a model predicting `Ozone` from `Wind`. Save it as
-`ozone_wind_model`, then print the model summary.
+Write a function named `prop_ci()` that takes a sample proportion
+`p_hat` and a sample size `n`, then returns the lower and upper bounds
+of a 95% confidence interval.
 
-```{r ex-fit-wind-model, exercise=TRUE}
+```{r ex-prop-ci-function, exercise=TRUE}
 
 ```
 
-```{r ex-fit-wind-model-hint-1}
-# Use lm(Ozone ~ Wind, data = air_model_data).
+```{r ex-prop-ci-function-hint-1}
+# Return c(lower, upper).
 ```
 
 ```{r, context="server", echo=FALSE}
 timed_solution(
-  "ex_fit_wind_model_solution_code",
-  "ozone_wind_model <- lm(Ozone ~ Wind, data = air_model_data)\n\nsummary(ozone_wind_model)"
+  "ex_prop_ci_function_solution_code",
+  "prop_ci <- function(p_hat, n) {\n  se <- sqrt(p_hat * (1 - p_hat) / n)\n  lower <- p_hat - 1.96 * se\n  upper <- p_hat + 1.96 * se\n  c(lower, upper)\n}\n\nprop_ci(p_hat = 0.60, n = 80)"
 )
 ```
 
-```{r ex-fit-wind-model-solution-ui, echo=FALSE}
-uiOutput("ex_fit_wind_model_solution_code")
+```{r ex-prop-ci-function-solution-ui, echo=FALSE}
+uiOutput("ex_prop_ci_function_solution_code")
 ```
 
-## Add a Fitted Line
+## Hypothesis Test
 
-```{r fitted-line, exercise=TRUE}
-ggplot(air_model_data, aes(x = Temp, y = Ozone)) +
-  geom_point() +
-  geom_smooth(method = "lm", se = FALSE) +
-  labs(x = "Temperature", y = "Ozone")
-```
+Suppose the null hypothesis is that exactly half of people support the
+policy.
 
-## Predictions
+$$
+H_0: p = 0.50
+$$
 
-Use `predict()` with a small data frame containing the explanatory
-variable values where we want predictions.
+We can approximate a two-sided p-value using a z statistic.
 
-```{r model-prediction, exercise=TRUE}
-new_days <- tibble(Temp = c(70, 80, 90))
+```{r p-value-example, exercise=TRUE}
+null_p <- 0.50
+se_null <- sqrt(null_p * (1 - null_p) / n)
+z <- (p_hat - null_p) / se_null
+p_value <- 2 * (1 - pnorm(abs(z)))
 
-predict(ozone_temp_model, newdata = new_days)
+p_value
 ```
 
 ## Your Turn 2
 
-Use `ozone_wind_model` to predict ozone when wind speed is 5, 10, and
-15 miles per hour.
+Repeat the one-proportion test using `null_p <- 0.60`. Is the p-value
+larger or smaller than the p-value for `null_p <- 0.50`?
 
-```{r ex-wind-predictions, exercise=TRUE}
-
+```{r ex-new-null, exercise=TRUE}
+null_p <- 0.60
 ```
 
-```{r ex-wind-predictions-hint-1}
-# Your new data frame needs a column named Wind.
+```{r ex-new-null-hint-1}
+# Recompute se_null, z, and p_value using the new null value.
 ```
 
 ```{r, context="server", echo=FALSE}
 timed_solution(
-  "ex_wind_predictions_solution_code",
-  "ozone_wind_model <- lm(Ozone ~ Wind, data = air_model_data)\n\nnew_wind_days <- tibble(Wind = c(5, 10, 15))\n\npredict(ozone_wind_model, newdata = new_wind_days)"
+  "ex_new_null_solution_code",
+  "null_p <- 0.60\nse_null <- sqrt(null_p * (1 - null_p) / n)\nz <- (p_hat - null_p) / se_null\np_value <- 2 * (1 - pnorm(abs(z)))\n\np_value"
 )
 ```
 
-```{r ex-wind-predictions-solution-ui, echo=FALSE}
-uiOutput("ex_wind_predictions_solution_code")
+```{r ex-new-null-solution-ui, echo=FALSE}
+uiOutput("ex_new_null_solution_code")
 ```
 
-## Residuals
+## Simulate Coverage
 
-A residual is:
+Coverage asks how often an interval-building method captures the true
+parameter across many repeated samples.
 
-$$
-\text{observed value} - \text{predicted value}
-$$
+```{r simulate-coverage, exercise=TRUE}
+set.seed(213)
 
-```{r add-residuals, exercise=TRUE}
-model_data_with_residuals <- air_model_data %>%
-  mutate(
-    predicted_ozone = predict(ozone_temp_model),
-    residual = Ozone - predicted_ozone
-  )
+capture_results <- replicate(
+  n = 1000,
+  expr = {
+    sample_data <- population %>%
+      slice_sample(n = 80)
+    phat <- mean(sample_data$supports_policy)
+    ci <- prop_ci(phat, n = 80)
+    ci[1] <= 0.58 & 0.58 <= ci[2]
+  }
+)
 
-head(model_data_with_residuals)
+mean(capture_results)
 ```
 
-## Residual Plot
+## Chi-Square Setup
 
-```{r residual-plot, exercise=TRUE}
-ggplot(model_data_with_residuals, aes(x = predicted_ozone, y = residual)) +
-  geom_point() +
-  geom_hline(yintercept = 0) +
-  labs(x = "Predicted ozone", y = "Residual")
+For a chi-square test of independence, start with counts in a two-way
+table.
+
+```{r two-way-table, exercise=TRUE}
+titanic_counts <- as.data.frame(Titanic) %>%
+  filter(Age == "Adult") %>%
+  group_by(Class, Survived) %>%
+  summarise(count = sum(Freq), .groups = "drop")
+
+titanic_counts
+```
+
+```{r chi-square-table, exercise=TRUE}
+observed_table <- xtabs(count ~ Class + Survived, data = titanic_counts)
+observed_table
+
+chisq.test(observed_table)
 ```
 
 ## Interpretation Check
 
-In one or two sentences, interpret the slope of the `Ozone ~ Temp`
-model in context. Be clear that this model describes an association and
-does not prove causation.
+In one or two sentences, explain how a confidence interval answers a
+different question from a hypothesis test.
 
-```{r ex-slope-interpretation, exercise=TRUE}
+```{r ex-ci-test-interpretation, exercise=TRUE}
 
-```
-
-## Your Turn 3
-
-Fit a model predicting `Ozone` from `Solar.R`. Make a scatterplot with a
-fitted line.
-
-```{r ex-solar-model-plot, exercise=TRUE}
-
-```
-
-```{r ex-solar-model-plot-hint-1}
-# Fit lm(Ozone ~ Solar.R, data = air_model_data).
-# Then map Solar.R to x and Ozone to y in ggplot().
-```
-
-```{r, context="server", echo=FALSE}
-timed_solution(
-  "ex_solar_model_plot_solution_code",
-  "ozone_solar_model <- lm(Ozone ~ Solar.R, data = air_model_data)\n\nsummary(ozone_solar_model)\n\nggplot(air_model_data, aes(x = Solar.R, y = Ozone)) +\n  geom_point() +\n  geom_smooth(method = \"lm\", se = FALSE) +\n  labs(x = \"Solar radiation\", y = \"Ozone\")"
-)
-```
-
-```{r ex-solar-model-plot-solution-ui, echo=FALSE}
-uiOutput("ex_solar_model_plot_solution_code")
 ```
 
 ## Final Task
 
-Choose either `Temp`, `Wind`, or `Solar.R` as the explanatory variable.
-Fit a model predicting `Ozone`, then write a short interpretation of the
-slope in context.
+Use `Titanic` to test whether passenger `Sex` and `Survived` appear
+independent among adults. Write one sentence interpreting the p-value in
+context.
 
-```{r ex-final-model, exercise=TRUE}
+```{r ex-final-chi-square, exercise=TRUE}
 
 ```
 
-```{r ex-final-model-hint-1}
-# Example structure:
-# my_model <- lm(Ozone ~ Temp, data = air_model_data)
-# summary(my_model)
+```{r ex-final-chi-square-hint-1}
+# Filter Age == "Adult", aggregate counts by Sex and Survived, then use xtabs().
 ```
 
 ```{r, context="server", echo=FALSE}
 timed_solution(
-  "ex_final_model_solution_code",
-  "my_model <- lm(Ozone ~ Temp, data = air_model_data)\n\nsummary(my_model)\n\n# Interpretation example:\n# For each additional degree Fahrenheit, the model predicts an average\n# increase of about 2.44 ozone units. This is an association in these\n# data, not proof that temperature alone causes ozone to increase."
+  "ex_final_chi_square_solution_code",
+  "sex_survival_counts <- as.data.frame(Titanic) %>%\n  filter(Age == \"Adult\") %>%\n  group_by(Sex, Survived) %>%\n  summarise(count = sum(Freq), .groups = \"drop\")\n\nsex_survival_table <- xtabs(count ~ Sex + Survived, data = sex_survival_counts)\n\nchisq.test(sex_survival_table)"
 )
 ```
 
-```{r ex-final-model-solution-ui, echo=FALSE}
-uiOutput("ex_final_model_solution_code")
+```{r ex-final-chi-square-solution-ui, echo=FALSE}
+uiOutput("ex_final_chi_square_solution_code")
 ```
 
 ## Submit

@@ -1,5 +1,5 @@
 ---
-title: "Probability: 4 - Functions, Loops, and Probability Calculations"
+title: "Tutorial 4: Probability Calculations and Simulation"
 output:
   learnr::tutorial:
     progressive: true
@@ -163,7 +163,9 @@ Calculations**!
 In this tutorial we will use R to turn repeated probability calculations
 into reusable code. We will write small functions, simulate repeated
 random experiments, and compare simulated results with theoretical
-probabilities.
+probabilities. This tutorial is preparation for **Lab 4**, where you
+will analyze expected value, variance, and simulation results for dice
+games.
 
 Our learning goals are to:
 

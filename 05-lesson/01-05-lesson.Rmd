@@ -1,5 +1,5 @@
 ---
-title: "Inference: 5 - Simulation, Sampling Distributions, and Inference"
+title: "Tutorial 5: LLN, CLT, and Sampling Distributions"
 output:
   learnr::tutorial:
     progressive: true
@@ -20,10 +20,7 @@ tutorial_options(exercise.eval = FALSE)
 
 my_reveal_time <- "2026-06-20 15:00:00"
 
-population <- tibble(
-  student = 1:10000,
-  supports_policy = rbinom(10000, size = 1, prob = 0.58)
-)
+population <- tibble(value = rgamma(10000, shape = 2, rate = 0.5))
 
 is_server_context <- function(.envir) {
   inherits(.envir$input, "reactivevalues") &
@@ -159,20 +156,20 @@ timed_solution <- function(output_id, code, title = "Solution",
 
 ## Welcome
 
-Hello, and welcome to **Simulation, Sampling Distributions, and
-Inference**!
+Hello, and welcome to **LLN, CLT, and Sampling Distributions**!
 
-In this tutorial we will repeatedly sample from a known population. The
-goal is to see that sample statistics vary from sample to sample, and
-that confidence intervals and p-values are built from this variability.
+This tutorial is preparation for **Lab 5**. In Lab 5 you will simulate
+sampling distributions from several different populations and explain
+how the Law of Large Numbers and Central Limit Theorem show up in the
+results.
 
 Our learning goals are to:
 
-- compute a sample proportion;
-- build a sampling distribution using repeated samples;
-- compare sampling variability for small and large samples;
-- construct and interpret a confidence interval for one proportion;
-- compute and interpret a p-value for one proportion.
+- generate values from a population distribution;
+- draw one sample and compute a sample mean;
+- repeat sampling to build a sampling distribution;
+- compare the effect of sample size `n` and repetitions `K`;
+- connect simulated spread to standard error.
 
 ## Packages
 
@@ -181,22 +178,27 @@ library(dplyr)
 library(ggplot2)
 ```
 
-## A Simulated Population
+## A Skewed Population
 
-Imagine a campus survey where each student either supports a proposed
-policy or does not support it. The variable `supports_policy` is 1 for
-support and 0 for no support.
+We will start with a right-skewed population. The population mean is the
+long-run target for sample means.
 
 ```{r create-population, exercise=TRUE}
 set.seed(213)
 
-population <- tibble(
-  student = 1:10000,
-  supports_policy = rbinom(10000, size = 1, prob = 0.58)
-)
+population <- tibble(value = rgamma(10000, shape = 2, rate = 0.5))
 
 population %>%
-  summarise(parameter = mean(supports_policy))
+  summarise(
+    population_mean = mean(value),
+    population_sd = sd(value)
+  )
+```
+
+```{r population-plot, exercise=TRUE}
+ggplot(population, aes(x = value)) +
+  geom_histogram(bins = 40, color = "white") +
+  labs(x = "Population value", y = "Count")
 ```
 
 ## Take One Sample
@@ -205,29 +207,28 @@ population %>%
 set.seed(213)
 
 one_sample <- population %>%
-  slice_sample(n = 80)
+  slice_sample(n = 30)
 
 one_sample %>%
-  summarise(p_hat = mean(supports_policy))
+  summarise(sample_mean = mean(value))
 ```
 
 ## Your Turn 1
 
-Take a sample of 40 students and compute the sample proportion who
-support the policy.
+Take a sample of 10 observations and compute its sample mean.
 
 ```{r ex-one-small-sample, exercise=TRUE}
 set.seed(213)
 ```
 
 ```{r ex-one-small-sample-hint-1}
-# Use slice_sample(n = 40), then summarise().
+# Use slice_sample(n = 10), then summarise(sample_mean = mean(value)).
 ```
 
 ```{r, context="server", echo=FALSE}
 timed_solution(
   "ex_one_small_sample_solution_code",
-  "set.seed(213)\n\nsmall_sample <- population %>%\n  slice_sample(n = 40)\n\nsmall_sample %>%\n  summarise(p_hat = mean(supports_policy))"
+  "set.seed(213)\n\nsmall_sample <- population %>%\n  slice_sample(n = 10)\n\nsmall_sample %>%\n  summarise(sample_mean = mean(value))"
 )
 ```
 
@@ -235,10 +236,10 @@ timed_solution(
 uiOutput("ex_one_small_sample_solution_code")
 ```
 
-## Repeat the Sampling Process
+## Build a Sampling Distribution
 
-Now we will take many samples. Each sample gives one value of
-`p_hat`. Together, those values form a sampling distribution.
+Now we repeat the sampling process many times. Each repetition produces
+one sample mean.
 
 ```{r repeated-samples, exercise=TRUE}
 set.seed(213)
@@ -247,28 +248,26 @@ sampling_distribution <- replicate(
   n = 1000,
   expr = {
     population %>%
-      slice_sample(n = 80) %>%
-      summarise(p_hat = mean(supports_policy)) %>%
-      pull(p_hat)
+      slice_sample(n = 30) %>%
+      summarise(sample_mean = mean(value)) %>%
+      pull(sample_mean)
   }
 )
 
-sampling_distribution <- tibble(p_hat = sampling_distribution)
+sampling_distribution <- tibble(sample_mean = sampling_distribution)
 
 head(sampling_distribution)
 ```
 
-## Plot the Sampling Distribution
-
 ```{r sampling-distribution-plot, exercise=TRUE}
-ggplot(sampling_distribution, aes(x = p_hat)) +
-  geom_histogram(binwidth = 0.025, color = "white") +
-  labs(x = "Sample proportion", y = "Number of samples")
+ggplot(sampling_distribution, aes(x = sample_mean)) +
+  geom_histogram(bins = 35, color = "white") +
+  labs(x = "Sample mean", y = "Number of samples")
 ```
 
 ## Your Turn 2
 
-Repeat the sampling process with samples of size 200 instead of 80.
+Repeat the sampling process with samples of size 100 instead of 30.
 Then plot the sampling distribution.
 
 ```{r ex-large-sampling-distribution, exercise=TRUE}
@@ -276,13 +275,13 @@ set.seed(213)
 ```
 
 ```{r ex-large-sampling-distribution-hint-1}
-# Copy the replicate() pattern above and change n = 80 to n = 200.
+# Copy the replicate() pattern above and change n = 30 to n = 100.
 ```
 
 ```{r, context="server", echo=FALSE}
 timed_solution(
   "ex_large_sampling_distribution_solution_code",
-  "set.seed(213)\n\nsampling_distribution_200 <- replicate(\n  n = 1000,\n  expr = {\n    population %>%\n      slice_sample(n = 200) %>%\n      summarise(p_hat = mean(supports_policy)) %>%\n      pull(p_hat)\n  }\n)\n\nsampling_distribution_200 <- tibble(p_hat = sampling_distribution_200)\n\nggplot(sampling_distribution_200, aes(x = p_hat)) +\n  geom_histogram(binwidth = 0.02, color = \"white\") +\n  labs(x = \"Sample proportion\", y = \"Number of samples\")"
+  "set.seed(213)\n\nsampling_distribution_100 <- replicate(\n  n = 1000,\n  expr = {\n    population %>%\n      slice_sample(n = 100) %>%\n      summarise(sample_mean = mean(value)) %>%\n      pull(sample_mean)\n  }\n)\n\nsampling_distribution_100 <- tibble(sample_mean = sampling_distribution_100)\n\nggplot(sampling_distribution_100, aes(x = sample_mean)) +\n  geom_histogram(bins = 35, color = \"white\") +\n  labs(x = \"Sample mean\", y = \"Number of samples\")"
 )
 ```
 
@@ -292,113 +291,85 @@ uiOutput("ex_large_sampling_distribution_solution_code")
 
 ## Standard Error
 
-For one proportion, the standard error is:
+For a sample mean, the standard error is:
 
 $$
-SE = \sqrt{\frac{\hat{p}(1 - \hat{p})}{n}}
+SE = \frac{\sigma}{\sqrt{n}}
 $$
+
+In practice we often estimate `sigma` with the population or sample
+standard deviation available in the simulation.
 
 ```{r standard-error, exercise=TRUE}
-p_hat <- mean(one_sample$supports_policy)
-n <- nrow(one_sample)
+population_sd <- sd(population$value)
+n <- 30
 
-standard_error <- sqrt(p_hat * (1 - p_hat) / n)
+standard_error <- population_sd / sqrt(n)
 standard_error
 ```
 
-## Confidence Interval
-
-A rough 95% confidence interval for one proportion is:
-
-$$
-\hat{p} \pm 1.96 \times SE
-$$
-
-```{r confidence-interval, exercise=TRUE}
-lower <- p_hat - 1.96 * standard_error
-upper <- p_hat + 1.96 * standard_error
-
-c(lower, upper)
+```{r simulated-spread, exercise=TRUE}
+sampling_distribution %>%
+  summarise(simulated_sd = sd(sample_mean))
 ```
 
 ## Your Turn 3
 
-Write a function named `prop_ci()` that takes a sample proportion
-`p_hat` and a sample size `n`, then returns the lower and upper bounds
-of a 95% confidence interval.
+Write a function named `simulate_means()` that takes a sample size `n`
+and number of repetitions `K`, then returns a tibble of sample means.
 
-```{r ex-prop-ci-function, exercise=TRUE}
+```{r ex-simulate-means-function, exercise=TRUE}
 
 ```
 
-```{r ex-prop-ci-function-hint-1}
-# Return c(lower, upper).
+```{r ex-simulate-means-function-hint-1}
+# Use replicate(n = K, expr = {...}) inside the function.
 ```
 
 ```{r, context="server", echo=FALSE}
 timed_solution(
-  "ex_prop_ci_function_solution_code",
-  "prop_ci <- function(p_hat, n) {\n  se <- sqrt(p_hat * (1 - p_hat) / n)\n  lower <- p_hat - 1.96 * se\n  upper <- p_hat + 1.96 * se\n  c(lower, upper)\n}\n\nprop_ci(p_hat = 0.60, n = 80)"
+  "ex_simulate_means_function_solution_code",
+  "simulate_means <- function(n, K) {\n  means <- replicate(\n    n = K,\n    expr = {\n      population %>%\n        slice_sample(n = n) %>%\n        summarise(sample_mean = mean(value)) %>%\n        pull(sample_mean)\n    }\n  )\n\n  tibble(sample_mean = means)\n}\n\nsimulate_means(n = 30, K = 5)"
 )
 ```
 
-```{r ex-prop-ci-function-solution-ui, echo=FALSE}
-uiOutput("ex_prop_ci_function_solution_code")
-```
-
-## Hypothesis Test
-
-Suppose the null hypothesis is that exactly half of students support the
-policy.
-
-$$
-H_0: p = 0.50
-$$
-
-We can approximate a two-sided p-value using a z statistic.
-
-```{r p-value-example, exercise=TRUE}
-null_p <- 0.50
-se_null <- sqrt(null_p * (1 - null_p) / n)
-z <- (p_hat - null_p) / se_null
-p_value <- 2 * (1 - pnorm(abs(z)))
-
-p_value
+```{r ex-simulate-means-function-solution-ui, echo=FALSE}
+uiOutput("ex_simulate_means_function_solution_code")
 ```
 
 ## Interpretation Check
 
-In one or two sentences, interpret the confidence interval from this
-tutorial in the context of campus policy support.
+In one or two sentences, explain why the sampling distribution with
+larger `n` is narrower than the sampling distribution with smaller `n`.
 
-```{r ex-ci-interpretation, exercise=TRUE}
+```{r ex-lln-clt-interpretation, exercise=TRUE}
 
 ```
 
 ## Final Task
 
-Investigate how sample size changes confidence interval width. Use
-`p_hat = 0.58` with sample sizes 40, 80, 160, and 320. Then write two
-sentences explaining the pattern.
+Compare sample sizes 10, 30, and 100 using `K = 1000` repetitions.
+Create a table with the simulated center and spread for each sample
+size, then write two sentences connecting the pattern to the Central
+Limit Theorem.
 
-```{r ex-final-ci-width, exercise=TRUE}
-sample_sizes <- c(40, 80, 160, 320)
+```{r ex-final-sample-size, exercise=TRUE}
+sample_sizes <- c(10, 30, 100)
 ```
 
-```{r ex-final-ci-width-hint-1}
-# Use your prop_ci() function or repeat the formula.
-# Width is upper bound minus lower bound.
+```{r ex-final-sample-size-hint-1}
+# Use simulate_means() for each sample size, then summarise().
 ```
 
 ```{r, context="server", echo=FALSE}
 timed_solution(
-  "ex_final_ci_width_solution_code",
-  "prop_ci <- function(p_hat, n) {\n  se <- sqrt(p_hat * (1 - p_hat) / n)\n  lower <- p_hat - 1.96 * se\n  upper <- p_hat + 1.96 * se\n  c(lower, upper)\n}\n\nsample_sizes <- c(40, 80, 160, 320)\n\nci_widths <- tibble(n = sample_sizes) %>%\n  rowwise() %>%\n  mutate(width = diff(prop_ci(0.58, n))) %>%\n  ungroup()\n\nci_widths"
+  "ex_final_sample_size_solution_code",
+  "simulate_means <- function(n, K) {\n  means <- replicate(\n    n = K,\n    expr = {\n      population %>%\n        slice_sample(n = n) %>%\n        summarise(sample_mean = mean(value)) %>%\n        pull(sample_mean)\n    }\n  )\n\n  tibble(sample_mean = means)\n}\n\nsample_sizes <- c(10, 30, 100)\n\nsummary_table <- purrr::map_dfr(\n  sample_sizes,\n  ~ simulate_means(n = .x, K = 1000) %>%\n    summarise(\n      n = .x,\n      center = mean(sample_mean),\n      spread = sd(sample_mean)\n    )\n)\n\nsummary_table"
 )
 ```
 
-```{r ex-final-ci-width-solution-ui, echo=FALSE}
-uiOutput("ex_final_ci_width_solution_code")
+```{r ex-final-sample-size-solution-ui, echo=FALSE}
+uiOutput("ex_final_sample_size_solution_code")
 ```
 
 ## Submit

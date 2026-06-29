@@ -1,5 +1,5 @@
 ---
-title: "Introduction to data: 1 - Data Transformation and Summaries"
+title: "Tutorial 2: Data Transformation and Summaries"
 output: 
   learnr::tutorial:
     progressive: true
@@ -205,7 +205,8 @@ Hello, and welcome to **Data Transformation and Summaries**!
 
 In this tutorial we will use R to load data, inspect variables, create
 new variables, filter rows, remove missing values, and make contingency
-tables.
+tables. This tutorial is preparation for **Lab 2**, together with
+Tutorial 1.
 
 Our learning goals are to:
 

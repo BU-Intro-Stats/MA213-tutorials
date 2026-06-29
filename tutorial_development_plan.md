@@ -21,11 +21,12 @@ Recommended coding load: 8-14 short exercises, with no single exercise depending
 | Tutorial | Current status | Prepares students for | Main R focus | Main statistical focus |
 | --- | --- | --- | --- | --- |
 | Tutorial 1 | Existing lesson | Lab 2 | R basics, vectors, subsetting | Variables and data structure |
-| Tutorial 2 | Existing lesson | Lab 3 | Importing data, `dplyr`, missing values | Data cleaning and summaries |
-| Tutorial 3 | Existing lesson | Lab 4 | `ggplot2`, plot choice, grouped summaries | Visualizing distributions and associations |
-| Tutorial 4 | To build | Lab 5 | Functions, loops, repeated calculation | Probability models and expected value |
-| Tutorial 5 | To build | Lab 6 | Simulation, sampling distributions, confidence intervals | Sampling variability and inference |
-| Tutorial 6 | To build | Lab 7 | Modeling workflow in R | Regression or Bayesian updating |
+| Tutorial 2 | Existing lesson | Lab 2 | Importing data, `dplyr`, missing values | Data cleaning and summaries |
+| Tutorial 3 | Existing lesson | Lab 3 | `ggplot2`, plot choice, grouped summaries | Visualizing distributions and associations |
+| Tutorial 4 | Existing lesson | Lab 4 | Functions, loops, repeated calculation | Probability models, expected value, and variance |
+| Tutorial 5 | Existing lesson | Lab 5 | Simulation, sample means, reusable simulation functions | LLN, CLT, and sampling distributions |
+| Tutorial 6 | Existing lesson | Lab 6 | Confidence intervals, p-values, chi-square tables | Inference for proportions and categorical data |
+| Tutorial 7 | New lesson | Lab 7 | Prior, likelihood, posterior, grid approximation | Bayesian updating and interpretation |
 
 ## Tutorial 1: R Basics and Data Objects
 
@@ -63,12 +64,12 @@ Tutorial 1 gives students a low-stakes first contact with R. The goal is not to 
 ## Tutorial 2: Data Wrangling with `dplyr`
 
 **Folder:** `02-lesson`  
-**Prepares for:** Lab 3  
+**Prepares for:** Lab 2  
 **Primary objectives:** M1 LO1, M1 LO3, M1 LO4, M6 LO1, M6 LO2
 
 ### Tutorial purpose
 
-Tutorial 2 moves from isolated R objects to real data frames. Students should leave able to import a data set, inspect its structure, create new variables, remove missing values when appropriate, and produce small tables that support interpretation.
+Tutorial 2 moves from isolated R objects to real data frames. Students should leave able to import a data set, inspect its structure, create new variables, remove missing values when appropriate, and produce small tables that support interpretation in Lab 2.
 
 ### Existing strengths
 
@@ -96,8 +97,8 @@ Tutorial 2 moves from isolated R objects to real data frames. Students should le
 ## Tutorial 3: Data Visualization with `ggplot2`
 
 **Folder:** `03-lesson`  
-**Prepares for:** Lab 4  
-**Primary objectives:** M1 LO1, M1 LO3, M1 LO4, M2 LO3, M6 LO1
+**Prepares for:** Lab 3  
+**Primary objectives:** M1 LO1, M1 LO3, M1 LO4, M6 LO1
 
 ### Tutorial purpose
 
@@ -129,8 +130,8 @@ Tutorial 3 helps students choose plots based on variable type and research quest
 
 ## Tutorial 4: Functions, Loops, and Probability Calculations
 
-**Folder:** proposed `04-lesson`  
-**Prepares for:** Lab 5  
+**Folder:** `04-lesson`  
+**Prepares for:** Lab 4  
 **Primary objectives:** M2 LO1, M2 LO3, M2 LO4, M2 LO5, M6 LO1, M6 LO2
 
 ### Tutorial purpose
@@ -166,30 +167,30 @@ Tutorial 4 should teach students how repeated calculations become reusable code.
 
 Students create a function called `expected_value()` that takes a vector of outcomes and a vector of probabilities, checks that the probabilities sum to 1, and returns the expected value.
 
-## Tutorial 5: Simulation, Sampling Distributions, and Inference
+## Tutorial 5: LLN, CLT, and Sampling Distributions
 
-**Folder:** proposed `05-lesson`  
-**Prepares for:** Lab 6  
-**Primary objectives:** M3 LO1, M3 LO2, M3 LO3, M3 LO4, M3 LO5, M6 LO1, M6 LO3
+**Folder:** `05-lesson`  
+**Prepares for:** Lab 5  
+**Primary objectives:** M2 LO2, M2 LO6, M3 LO1, M3 LO2, M6 LO1, M6 LO3
 
 ### Tutorial purpose
 
-Tutorial 5 should bridge probability and inference. Students should see that a sample statistic varies from sample to sample, and that confidence intervals and p-values are built from this variability.
+Tutorial 5 should bridge probability and sampling distributions. Students should see that a sample statistic varies from sample to sample, that larger samples produce less variable sample means, and that the CLT makes sampling distributions useful even when the population is skewed.
 
 ### Proposed content
 
 - Draw repeated samples from a known population.
-- Compute a sample proportion or sample mean for each sample.
+- Compute a sample mean for each sample.
 - Plot the sampling distribution.
 - Compare small and large sample sizes.
-- Build a confidence interval for a single proportion.
-- Run a hypothesis test for a single proportion.
+- Compare the number of repetitions `K` with the sample size `n`.
+- Connect simulated spread to standard error.
 
 ### Recommended data and examples
 
-- Simulated binary outcomes for a single-proportion setting.
-- A simple survey-style example where the parameter is understandable.
-- Optional use of `infer` if it is part of the course toolkit; otherwise use base R and tidyverse tools.
+- Simulated right-skewed populations using `rgamma()` or `rexp()`.
+- Optional comparisons with normal, binomial, Poisson, exponential, and gamma populations.
+- Base R and tidyverse tools, especially `sample()`, `replicate()`, and `ggplot()`.
 
 ### Suggested exercise flow
 
@@ -197,45 +198,46 @@ Tutorial 5 should bridge probability and inference. Students should see that a s
 2. Repeat sampling many times.
 3. Plot the distribution of point estimates.
 4. Change the sample size and compare variability.
-5. Compute a standard error.
-6. Construct and interpret a confidence interval.
-7. State null and alternative hypotheses.
-8. Compute and interpret a p-value.
-9. Submit a written distinction between statistical and practical significance.
+5. Compute a standard error for a sample mean.
+6. Write a reusable simulation function.
+7. Compare `n = 10`, `n = 30`, and `n = 100`.
+8. Submit a written explanation of LLN/CLT behavior.
 
 ### Suggested final task
 
-Students investigate how sample size changes the width of a confidence interval, then write two sentences explaining the pattern in context.
+Students investigate how sample size changes the center, spread, and shape of a sampling distribution, then write two sentences explaining the pattern in context.
 
-## Tutorial 6: Modeling Extension
+## Tutorial 6: Confidence Intervals and Hypothesis Tests
 
-**Folder:** proposed `06-lesson`  
-**Prepares for:** Lab 7  
-**Primary objectives:** M4 LO4, M4 LO5, M4 LO7, M5 LO1, M5 LO2, M5 LO3, M6 LO1, M6 LO4
+**Folder:** `06-lesson`  
+**Prepares for:** Lab 6  
+**Primary objectives:** M3 LO3, M3 LO4, M3 LO5, M4 LO1, M4 LO2, M6 LO1, M6 LO3
 
 ### Tutorial purpose
 
-Tutorial 6 should serve as the course bridge from "choose the right procedure" to "build and explain a model." It can be built as either a regression extension or a Bayesian extension. If time permits, the tutorial can offer both paths, but one should be the required path.
+Tutorial 6 should prepare students for the inference lab by making the relationship between confidence intervals and hypothesis tests explicit. It should also give students a first structured pass at two-way tables for chi-square inference.
 
-### Option A: Regression extension
+### Suggested content
 
-Use this path if Lab 7 emphasizes linear modeling.
+- Construct and interpret a confidence interval for one proportion.
+- State a null hypothesis and compute a p-value for one proportion.
+- Simulate confidence interval coverage.
+- Build two-way tables from categorical counts.
+- Use `chisq.test()` and interpret the output cautiously.
 
-Suggested content:
+### Suggested final task
 
-- Fit a linear model with `lm()`.
-- Interpret the intercept and slope in context.
-- Add a fitted line to a scatterplot.
-- Inspect residuals.
-- Explain what the model does and does not prove.
+Students test whether two categorical variables appear independent in the Titanic data and write one sentence interpreting the p-value in context.
 
-Suggested final task:
+## Tutorial 7: Bayesian Updating
 
-Students fit a model predicting a numerical response from one explanatory variable and write a short interpretation of the slope.
+**Folder:** `07-lesson`  
+**Prepares for:** Lab 7  
+**Primary objectives:** M5 LO1, M5 LO2, M5 LO3, M6 LO4
 
-### Option B: Bayesian extension
+### Tutorial purpose
 
-Use this path if Lab 7 emphasizes Bayesian updating.
+Tutorial 7 should prepare students for the Bayesian lab by making the prior-likelihood-posterior workflow concrete before lab. The tutorial should emphasize interpretation, not advanced theory.
 
 Suggested content:
 
@@ -251,9 +253,9 @@ Students compare two priors using the same data and explain how the posterior ch
 
 ## Implementation Priorities
 
-1. Finish the conceptual scope of Tutorials 4-6 before polishing style.
-2. Keep the learnr template consistent across all six tutorials.
-3. Reuse the completion/hash pattern already present in Tutorials 1-3.
+1. Finish the conceptual scope of Tutorials 5-7 before polishing style.
+2. Keep the learnr template consistent across all seven tutorials.
+3. Reuse the completion/hash pattern already present in Tutorials 1-6.
 4. Give each tutorial at least one interpretation prompt that is graded or checked.
 5. Avoid making tutorials into full labs; the tutorial should prepare students for the lab, not replace it.
 
@@ -262,8 +264,7 @@ Students compare two priors using the same data and explain how the posterior ch
 | Course component | Tutorial support |
 | --- | --- |
 | Project 1 | Tutorials 1-3 support data cleaning, visualization, and presentation preparation. |
-| Project 2 | Tutorials 5-6 support inference, modeling, and written explanation. |
+| Project 2 | Tutorials 5-7 support inference, Bayesian reasoning, and written explanation. |
 | Quizzes 1-2 | Tutorials 1-4 support variable types, EDA, probability, and distributions. |
-| Quizzes 3-4 | Tutorial 5 supports sampling distributions, confidence intervals, and hypothesis tests. |
-| Quiz 5 | Tutorial 6 supports modeling, Bayesian reasoning, and comparison of inferential perspectives. |
-
+| Quizzes 3-4 | Tutorials 5-6 support sampling distributions, confidence intervals, and hypothesis tests. |
+| Quiz 5 | Tutorial 7 supports Bayesian reasoning and comparison of inferential perspectives. |

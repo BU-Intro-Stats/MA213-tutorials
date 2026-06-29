@@ -1,0 +1,182 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{listings}
+
+\hypersetup{colorlinks=true, linkcolor=blue, urlcolor=blue}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt}
+\setlist[itemize]{topsep=3pt,itemsep=2pt,leftmargin=*}
+\setlist[enumerate]{topsep=3pt,itemsep=4pt,leftmargin=*}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  frame=single,
+  columns=fullflexible,
+  keepspaces=true,
+  showstringspaces=false,
+  backgroundcolor=\color{gray!6}
+}
+
+\definecolor{predictcolor}{RGB}{255,242,200}
+\definecolor{discusscolor}{RGB}{214,234,255}
+\definecolor{funfactcolor}{RGB}{222,247,222}
+\definecolor{debatecolor}{RGB}{255,221,221}
+
+\newcommand{\calloutbox}[3]{%
+  \vspace{4pt}\noindent
+  \colorbox{#1}{\parbox{0.96\linewidth}{\textbf{#2}}}\\[2pt]
+  \noindent\fbox{\begin{minipage}{0.94\linewidth}\vspace{2pt}#3\vspace{2pt}\end{minipage}}
+  \vspace{6pt}
+}
+\newcommand{\predictbox}[1]{\calloutbox{predictcolor}{PREDICTION TIME}{#1}}
+\newcommand{\discussbox}[1]{\calloutbox{discusscolor}{HUDDLE UP}{#1}}
+\newcommand{\funfact}[1]{\calloutbox{funfactcolor}{FUN FACT}{#1}}
+\newcommand{\debatebox}[1]{\calloutbox{debatecolor}{DEBATE CORNER}{#1}}
+\newcommand{\claimbox}[1]{\calloutbox{funfactcolor}{CLAIM, EVIDENCE, CONTEXT}{#1}}
+\newcommand{\badge}[1]{$[\ ]$ \textbf{#1}}
+
+\newcommand{\writebox}[1]{
+  \vspace{3pt}
+  \noindent\fbox{
+    \begin{minipage}{0.96\linewidth}
+      \textbf{#1}\\[12pt]
+      \rule{\linewidth}{0.4pt}\\[14pt]
+      \rule{\linewidth}{0.4pt}\\[14pt]
+      \rule{\linewidth}{0.4pt}\\[14pt]
+    \end{minipage}
+  }
+  \vspace{6pt}
+}
+
+\begin{document}
+
+\begin{center}
+  {\LARGE MA 213 Week 1: Lab 1}\\[3pt]
+  {\large R Intro and first data exploration}
+\end{center}
+
+\begin{enumerate}
+  \item \textbf{Your name:} \underline{\hspace{0.3\textwidth}} \hfill \textbf{BU ID:} \underline{\hspace{0.25\textwidth}}
+  \item \textbf{Partner's name:} \underline{\hspace{0.3\textwidth}} \hfill \textbf{BU ID:} \underline{\hspace{0.25\textwidth}}
+\end{enumerate}
+
+\textbf{Big idea:} In this lab, you will practice using R to explore data sets and answer questions about them. You will also practice writing up your findings in a clear and concise way.
+\textbf{Do not use GenAI tools for this lab.} The point is to practice your own analysis work and coding skills. 
+
+\textbf{File used:} \texttt{sleep.csv}
+
+\textbf{Your mission:} Work with your partner to get familiar with R, import a data set, and figure out what is hidden in the structure of the data.
+
+\section*{Icebreaker}
+
+Before opening R: introduce yourself to your partner and share one fun fact about yourself.
+
+\writebox{One thing I want my partner to know about me:}
+
+\section*{Question 1. Import the data and explore it}
+
+Import \texttt{sleep.csv} into R. Then look at the first few rows.
+
+\begin{lstlisting}[language=R]
+# Read the CSV file.
+sleep_data <- read.csv("sleep.csv", row.names = 1)
+
+# Look at the first few rows.
+head(sleep_data)
+\end{lstlisting}
+
+\discussbox{Before doing calculations, discuss with your partner: What do you think this data set is about? What do you expect to find?}
+
+\writebox{Write 2--3 sentences describing what you see in the data.}
+
+\section*{Question 2. How many patients are in the data set? How many variables? What are the variable names?}
+
+\begin{lstlisting}[language=R]
+# Hint: use dim() and names() to explore the data.
+# The sleep data is also a built-in R data set, so help(sleep) may help.
+# https://stat.ethz.ch/R-manual/R-devel/library/datasets/html/sleep.html
+
+dim(sleep_data)
+names(sleep_data)
+length(unique(sleep_data$ID))
+\end{lstlisting}
+
+\discussbox{If R gives an error such as ``cannot open file,'' it usually means R is looking in a different folder. Use \texttt{getwd()} to see your working directory.}
+
+\writebox{Number of rows: \hspace{2cm} Number of variables: \hspace{2cm} Number of patients: \hspace{2cm}}
+
+\section*{Question 3. What does one row represent?}
+
+Use \texttt{str()} to inspect the variables. Then decide which variables are numerical and which are categorical.
+
+\begin{lstlisting}[language=R]
+str(sleep_data)
+\end{lstlisting}
+
+\begin{center}
+\begin{tabular}{|p{0.22\textwidth}|p{0.28\textwidth}|p{0.4\textwidth}|}
+\hline
+\textbf{Variable} & \textbf{Categorical or numerical?} & \textbf{What does it mean?}\\
+\hline
+\texttt{extra} & & \\[22pt]
+\hline
+\texttt{group} & & \\[22pt]
+\hline
+\texttt{ID} & & \\[22pt]
+\hline
+\end{tabular}
+\end{center}
+
+\writebox{What does one row represent in this data set?}
+
+\section*{Question 4. What is hidden in the data set?}
+
+At first, the data set may look like it has 20 different people. Look more carefully at \texttt{ID}. Is that true?
+
+\begin{lstlisting}[language=R]
+table(sleep_data$ID)
+table(sleep_data$group)
+
+# This shows each patient's records together.
+sleep_data[order(sleep_data$ID, sleep_data$group), ]
+\end{lstlisting}
+
+\discussbox{The hidden structure is that each patient appears twice: once in group 1 and once in group 2. This means the data are paired.}
+
+\begin{center}
+\begin{tabular}{|p{0.3\textwidth}|p{0.58\textwidth}|}
+\hline
+\textbf{Question} & \textbf{Your answer}\\
+\hline
+How many rows are there? & \\[18pt]
+\hline
+How many unique patients are there? & \\[18pt]
+\hline
+How many times does each patient appear? & \\[18pt]
+\hline
+What is hidden in the data? & \\[24pt]
+\hline
+\end{tabular}
+\end{center}
+
+\section*{Question 5. Compare the two groups}
+
+Now compare the amount of extra sleep in group 1 and group 2.
+
+\begin{lstlisting}[language=R]
+aggregate(extra ~ group, data = sleep_data, FUN = mean)
+aggregate(extra ~ group, data = sleep_data, FUN = median)
+\end{lstlisting}
+
+\writebox{Which group had the larger average extra sleep? How do you know?}
+
+\claimbox{Final answer: The hidden feature of the data set is \underline{\hspace{5cm}}. The group with more extra sleep is \underline{\hspace{3cm}}. My evidence is \underline{\hspace{5cm}}.}
+
+\textbf{Submission check:} Make sure your R script runs from top to bottom and includes your code for Questions 1--5.
+
+\end{document}

@@ -1,5 +1,5 @@
 ---
-title: "Introduction to data: 2 - Data Visualization"
+title: "Tutorial 3: Data Visualization"
 output: 
   learnr::tutorial:
     progressive: true
@@ -200,6 +200,8 @@ Hello, and welcome to **Data Visualization**!
 In this tutorial we will use R to create basic plots with `ggplot2`.
 We will work with the New York air quality data and the Titanic data to
 make histograms, boxplots, scatterplots, barplots, and a pie chart.
+This tutorial is preparation for **Lab 3**, where you will use plots and
+tables as evidence for written interpretations.
 
 Our learning goals are to:
 

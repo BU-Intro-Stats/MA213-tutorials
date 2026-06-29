@@ -14,7 +14,7 @@
 <meta name="allow-skip" content="true" />
 <meta name="learnr-version-prerender" content="0.11.5" />
 
-<title>Tutorial 6: Confidence Intervals and Hypothesis Tests</title>
+<title>Tutorial 7: Bayesian Updating</title>
 
 <!-- header-includes START -->
 <!-- HEAD_CONTENT -->
@@ -111,19 +111,18 @@ if (window.hljs) {
 
 <div id="section-welcome" class="section level2">
 <h2>Welcome</h2>
-<p>Hello, and welcome to <strong>Confidence Intervals and Hypothesis
-Tests</strong>!</p>
-<p>This tutorial is preparation for <strong>Lab 6</strong>. In Lab 6 you
-will compare confidence intervals and hypothesis tests, simulate
-confidence interval coverage, and build a chi-square test of
-independence.</p>
+<p>Hello, and welcome to <strong>Bayesian Updating</strong>!</p>
+<p>This tutorial is preparation for <strong>Lab 7</strong>. In Lab 7 you
+will use Bayes’ rule, likelihoods, priors, and posterior distributions
+to explain how evidence updates belief.</p>
 <p>Our learning goals are to:</p>
 <ul>
-<li>compute a sample proportion;</li>
-<li>construct and interpret a confidence interval;</li>
-<li>state and test a null hypothesis for one proportion;</li>
-<li>simulate confidence interval coverage;</li>
-<li>organize categorical data for a chi-square test.</li>
+<li>use Bayes’ rule with a small probability table;</li>
+<li>compute a likelihood for observed successes and failures;</li>
+<li>build a posterior distribution on a grid;</li>
+<li>compare weak and strong priors;</li>
+<li>describe Bayesian and frequentist conclusions in different
+language.</li>
 </ul>
 </div>
 <div id="section-packages" class="section level2">
@@ -136,171 +135,161 @@ library(ggplot2)</code></pre>
 <script type="application/json" data-ui-opts="1">{"engine":"r","has_checker":false,"caption":"<span data-i18n=\"text.enginecap\" data-i18n-opts=\"{&quot;engine&quot;:&quot;R&quot;}\">R Code<\/span>"}</script>
 </div>
 </div>
-<div id="section-a-simulated-population" class="section level2">
-<h2>A Simulated Population</h2>
-<p>Imagine a campus survey where each person either supports a proposed
-policy or does not support it. The variable <code>supports_policy</code>
-is 1 for support and 0 for no support.</p>
-<div class="tutorial-exercise" data-label="create-population"
+<div id="section-bayes-rule-with-counts" class="section level2">
+<h2>Bayes’ Rule with Counts</h2>
+<p>Suppose 1% of people have a condition. A test is positive for 95% of
+people with the condition and 10% of people without it.</p>
+<div class="tutorial-exercise" data-label="diagnostic-counts"
 data-completion="1" data-diagnostics="1" data-startover="1"
 data-lines="0" data-pipe="|&gt;">
-<pre class="text"><code>set.seed(213)
+<pre class="text"><code>diagnostic_table &lt;- tibble(
+  group = c(&quot;condition&quot;, &quot;no_condition&quot;),
+  people = c(100, 9900),
+  positive_rate = c(0.95, 0.10)
+) %&gt;%
+  mutate(
+    positive = people * positive_rate,
+    negative = people - positive
+  )
 
-population &lt;- tibble(
-  person = 1:10000,
-  supports_policy = rbinom(10000, size = 1, prob = 0.58)
-)
-
-population %&gt;%
-  summarise(parameter = mean(supports_policy))</code></pre>
+diagnostic_table</code></pre>
 <script type="application/json" data-ui-opts="1">{"engine":"r","has_checker":false,"caption":"<span data-i18n=\"text.enginecap\" data-i18n-opts=\"{&quot;engine&quot;:&quot;R&quot;}\">R Code<\/span>"}</script>
 </div>
-</div>
-<div id="section-take-one-sample" class="section level2">
-<h2>Take One Sample</h2>
-<div class="tutorial-exercise" data-label="one-sample"
+<div class="tutorial-exercise" data-label="posterior-diagnostic"
 data-completion="1" data-diagnostics="1" data-startover="1"
 data-lines="0" data-pipe="|&gt;">
-<pre class="text"><code>set.seed(213)
-
-one_sample &lt;- population %&gt;%
-  slice_sample(n = 80)
-
-one_sample %&gt;%
-  summarise(p_hat = mean(supports_policy))</code></pre>
-<script type="application/json" data-ui-opts="1">{"engine":"r","has_checker":false,"caption":"<span data-i18n=\"text.enginecap\" data-i18n-opts=\"{&quot;engine&quot;:&quot;R&quot;}\">R Code<\/span>"}</script>
-</div>
-</div>
-<div id="section-confidence-interval" class="section level2">
-<h2>Confidence Interval</h2>
-<p>For one proportion, the standard error is:</p>
-<p><span class="math display">\[
-SE = \sqrt{\frac{\hat{p}(1 - \hat{p})}{n}}
-\]</span></p>
-<div class="tutorial-exercise" data-label="confidence-interval"
-data-completion="1" data-diagnostics="1" data-startover="1"
-data-lines="0" data-pipe="|&gt;">
-<pre class="text"><code>p_hat &lt;- mean(one_sample$supports_policy)
-n &lt;- nrow(one_sample)
-standard_error &lt;- sqrt(p_hat * (1 - p_hat) / n)
-
-lower &lt;- p_hat - 1.96 * standard_error
-upper &lt;- p_hat + 1.96 * standard_error
-
-c(lower, upper)</code></pre>
+<pre class="text"><code>diagnostic_table %&gt;%
+  summarise(
+    posterior_condition_given_positive =
+      positive[group == &quot;condition&quot;] / sum(positive)
+  )</code></pre>
 <script type="application/json" data-ui-opts="1">{"engine":"r","has_checker":false,"caption":"<span data-i18n=\"text.enginecap\" data-i18n-opts=\"{&quot;engine&quot;:&quot;R&quot;}\">R Code<\/span>"}</script>
 </div>
 </div>
 <div id="section-your-turn-1" class="section level2">
 <h2>Your Turn 1</h2>
-<p>Write a function named <code>prop_ci()</code> that takes a sample
-proportion <code>p_hat</code> and a sample size <code>n</code>, then
-returns the lower and upper bounds of a 95% confidence interval.</p>
-<div class="tutorial-exercise" data-label="ex-prop-ci-function"
+<p>Change the false positive rate from 10% to 5%. What happens to the
+posterior probability of having the condition after a positive test?</p>
+<div class="tutorial-exercise" data-label="ex-false-positive"
 data-completion="1" data-diagnostics="1" data-startover="1"
 data-lines="0" data-pipe="|&gt;">
 <script type="application/json" data-ui-opts="1">{"engine":"r","has_checker":false,"caption":"<span data-i18n=\"text.enginecap\" data-i18n-opts=\"{&quot;engine&quot;:&quot;R&quot;}\">R Code<\/span>"}</script>
 </div>
 <div class="tutorial-exercise-support"
-data-label="ex-prop-ci-function-hint-1" data-completion="1"
+data-label="ex-false-positive-hint-1" data-completion="1"
 data-diagnostics="1" data-startover="1" data-lines="0"
 data-pipe="|&gt;">
-<pre class="text"><code># Return c(lower, upper).</code></pre>
+<pre class="text"><code># Change positive_rate for the no_condition row from 0.10 to 0.05.</code></pre>
 </div>
-<div id="ex_prop_ci_function_solution_code" class="shiny-html-output"></div>
+<div id="ex_false_positive_solution_code" class="shiny-html-output"></div>
 </div>
-<div id="section-hypothesis-test" class="section level2">
-<h2>Hypothesis Test</h2>
-<p>Suppose the null hypothesis is that exactly half of people support
-the policy.</p>
-<p><span class="math display">\[
-H_0: p = 0.50
-\]</span></p>
-<p>We can approximate a two-sided p-value using a z statistic.</p>
-<div class="tutorial-exercise" data-label="p-value-example"
+<div id="section-a-grid-posterior" class="section level2">
+<h2>A Grid Posterior</h2>
+<p>Now suppose a coin lands heads 8 times in 10 flips. We will estimate
+the probability of heads, called <code>theta</code>, using a grid of
+possible values.</p>
+<div class="tutorial-exercise" data-label="grid-prior"
 data-completion="1" data-diagnostics="1" data-startover="1"
 data-lines="0" data-pipe="|&gt;">
-<pre class="text"><code>null_p &lt;- 0.50
-se_null &lt;- sqrt(null_p * (1 - null_p) / n)
-z &lt;- (p_hat - null_p) / se_null
-p_value &lt;- 2 * (1 - pnorm(abs(z)))
+<pre class="text"><code>theta_grid &lt;- seq(0, 1, length.out = 101)
 
-p_value</code></pre>
+coin_grid &lt;- tibble(
+  theta = theta_grid,
+  prior = 1
+)
+
+coin_grid</code></pre>
+<script type="application/json" data-ui-opts="1">{"engine":"r","has_checker":false,"caption":"<span data-i18n=\"text.enginecap\" data-i18n-opts=\"{&quot;engine&quot;:&quot;R&quot;}\">R Code<\/span>"}</script>
+</div>
+<div class="tutorial-exercise" data-label="likelihood"
+data-completion="1" data-diagnostics="1" data-startover="1"
+data-lines="0" data-pipe="|&gt;">
+<pre class="text"><code>heads &lt;- 8
+flips &lt;- 10
+
+coin_grid &lt;- coin_grid %&gt;%
+  mutate(
+    likelihood = dbinom(heads, size = flips, prob = theta),
+    unscaled_posterior = prior * likelihood,
+    posterior = unscaled_posterior / sum(unscaled_posterior)
+  )
+
+coin_grid</code></pre>
+<script type="application/json" data-ui-opts="1">{"engine":"r","has_checker":false,"caption":"<span data-i18n=\"text.enginecap\" data-i18n-opts=\"{&quot;engine&quot;:&quot;R&quot;}\">R Code<\/span>"}</script>
+</div>
+<div class="tutorial-exercise" data-label="posterior-plot"
+data-completion="1" data-diagnostics="1" data-startover="1"
+data-lines="0" data-pipe="|&gt;">
+<pre class="text"><code>ggplot(coin_grid, aes(x = theta, y = posterior)) +
+  geom_col(width = 0.01) +
+  labs(x = &quot;Possible value of theta&quot;, y = &quot;Posterior probability&quot;)</code></pre>
+<script type="application/json" data-ui-opts="1">{"engine":"r","has_checker":false,"caption":"<span data-i18n=\"text.enginecap\" data-i18n-opts=\"{&quot;engine&quot;:&quot;R&quot;}\">R Code<\/span>"}</script>
+</div>
+</div>
+<div id="section-posterior-summaries" class="section level2">
+<h2>Posterior Summaries</h2>
+<div class="tutorial-exercise" data-label="posterior-summary"
+data-completion="1" data-diagnostics="1" data-startover="1"
+data-lines="0" data-pipe="|&gt;">
+<pre class="text"><code>coin_grid %&gt;%
+  summarise(
+    posterior_mean = sum(theta * posterior),
+    posterior_probability_theta_above_half = sum(posterior[theta &gt; 0.5])
+  )</code></pre>
 <script type="application/json" data-ui-opts="1">{"engine":"r","has_checker":false,"caption":"<span data-i18n=\"text.enginecap\" data-i18n-opts=\"{&quot;engine&quot;:&quot;R&quot;}\">R Code<\/span>"}</script>
 </div>
 </div>
 <div id="section-your-turn-2" class="section level2">
 <h2>Your Turn 2</h2>
-<p>Repeat the one-proportion test using <code>null_p &lt;- 0.60</code>.
-Is the p-value larger or smaller than the p-value for
-<code>null_p &lt;- 0.50</code>?</p>
-<div class="tutorial-exercise" data-label="ex-new-null"
+<p>Rebuild the posterior for 14 heads in 20 flips. Compute the posterior
+mean.</p>
+<div class="tutorial-exercise" data-label="ex-more-data"
 data-completion="1" data-diagnostics="1" data-startover="1"
 data-lines="0" data-pipe="|&gt;">
-<pre class="text"><code>null_p &lt;- 0.60</code></pre>
+<pre class="text"><code>heads &lt;- 14
+flips &lt;- 20</code></pre>
 <script type="application/json" data-ui-opts="1">{"engine":"r","has_checker":false,"caption":"<span data-i18n=\"text.enginecap\" data-i18n-opts=\"{&quot;engine&quot;:&quot;R&quot;}\">R Code<\/span>"}</script>
 </div>
-<div class="tutorial-exercise-support" data-label="ex-new-null-hint-1"
+<div class="tutorial-exercise-support" data-label="ex-more-data-hint-1"
 data-completion="1" data-diagnostics="1" data-startover="1"
 data-lines="0" data-pipe="|&gt;">
-<pre class="text"><code># Recompute se_null, z, and p_value using the new null value.</code></pre>
+<pre class="text"><code># Reuse the likelihood, unscaled posterior, and posterior calculations.</code></pre>
 </div>
-<div id="ex_new_null_solution_code" class="shiny-html-output"></div>
+<div id="ex_more_data_solution_code" class="shiny-html-output"></div>
 </div>
-<div id="section-simulate-coverage" class="section level2">
-<h2>Simulate Coverage</h2>
-<p>Coverage asks how often an interval-building method captures the true
-parameter across many repeated samples.</p>
-<div class="tutorial-exercise" data-label="simulate-coverage"
+<div id="section-compare-priors" class="section level2">
+<h2>Compare Priors</h2>
+<p>A stronger prior can pull the posterior toward the values the prior
+favored, especially when the amount of data is small.</p>
+<div class="tutorial-exercise" data-label="compare-priors"
 data-completion="1" data-diagnostics="1" data-startover="1"
 data-lines="0" data-pipe="|&gt;">
-<pre class="text"><code>set.seed(213)
+<pre class="text"><code>prior_comparison &lt;- tibble(
+  theta = rep(theta_grid, times = 2),
+  prior_type = rep(c(&quot;uniform&quot;, &quot;skeptical&quot;), each = length(theta_grid)),
+  prior = c(
+    rep(1, length(theta_grid)),
+    dbeta(theta_grid, shape1 = 20, shape2 = 20)
+  )
+) %&gt;%
+  group_by(prior_type) %&gt;%
+  mutate(
+    likelihood = dbinom(8, size = 10, prob = theta),
+    posterior = prior * likelihood / sum(prior * likelihood)
+  ) %&gt;%
+  ungroup()
 
-capture_results &lt;- replicate(
-  n = 1000,
-  expr = {
-    sample_data &lt;- population %&gt;%
-      slice_sample(n = 80)
-    phat &lt;- mean(sample_data$supports_policy)
-    ci &lt;- prop_ci(phat, n = 80)
-    ci[1] &lt;= 0.58 &amp; 0.58 &lt;= ci[2]
-  }
-)
-
-mean(capture_results)</code></pre>
-<script type="application/json" data-ui-opts="1">{"engine":"r","has_checker":false,"caption":"<span data-i18n=\"text.enginecap\" data-i18n-opts=\"{&quot;engine&quot;:&quot;R&quot;}\">R Code<\/span>"}</script>
-</div>
-</div>
-<div id="section-chi-square-setup" class="section level2">
-<h2>Chi-Square Setup</h2>
-<p>For a chi-square test of independence, start with counts in a two-way
-table.</p>
-<div class="tutorial-exercise" data-label="two-way-table"
-data-completion="1" data-diagnostics="1" data-startover="1"
-data-lines="0" data-pipe="|&gt;">
-<pre class="text"><code>titanic_counts &lt;- as.data.frame(Titanic) %&gt;%
-  filter(Age == &quot;Adult&quot;) %&gt;%
-  group_by(Class, Survived) %&gt;%
-  summarise(count = sum(Freq), .groups = &quot;drop&quot;)
-
-titanic_counts</code></pre>
-<script type="application/json" data-ui-opts="1">{"engine":"r","has_checker":false,"caption":"<span data-i18n=\"text.enginecap\" data-i18n-opts=\"{&quot;engine&quot;:&quot;R&quot;}\">R Code<\/span>"}</script>
-</div>
-<div class="tutorial-exercise" data-label="chi-square-table"
-data-completion="1" data-diagnostics="1" data-startover="1"
-data-lines="0" data-pipe="|&gt;">
-<pre class="text"><code>observed_table &lt;- xtabs(count ~ Class + Survived, data = titanic_counts)
-observed_table
-
-chisq.test(observed_table)</code></pre>
+ggplot(prior_comparison, aes(x = theta, y = posterior, color = prior_type)) +
+  geom_line() +
+  labs(x = &quot;Possible value of theta&quot;, y = &quot;Posterior probability&quot;)</code></pre>
 <script type="application/json" data-ui-opts="1">{"engine":"r","has_checker":false,"caption":"<span data-i18n=\"text.enginecap\" data-i18n-opts=\"{&quot;engine&quot;:&quot;R&quot;}\">R Code<\/span>"}</script>
 </div>
 </div>
 <div id="section-interpretation-check" class="section level2">
 <h2>Interpretation Check</h2>
-<p>In one or two sentences, explain how a confidence interval answers a
-different question from a hypothesis test.</p>
-<div class="tutorial-exercise" data-label="ex-ci-test-interpretation"
+<p>In one or two sentences, explain why two people can use the same data
+but get different posterior distributions.</p>
+<div class="tutorial-exercise" data-label="ex-prior-interpretation"
 data-completion="1" data-diagnostics="1" data-startover="1"
 data-lines="0" data-pipe="|&gt;">
 <script type="application/json" data-ui-opts="1">{"engine":"r","has_checker":false,"caption":"<span data-i18n=\"text.enginecap\" data-i18n-opts=\"{&quot;engine&quot;:&quot;R&quot;}\">R Code<\/span>"}</script>
@@ -308,21 +297,22 @@ data-lines="0" data-pipe="|&gt;">
 </div>
 <div id="section-final-task" class="section level2">
 <h2>Final Task</h2>
-<p>Use <code>Titanic</code> to test whether passenger <code>Sex</code>
-and <code>Survived</code> appear independent among adults. Write one
-sentence interpreting the p-value in context.</p>
-<div class="tutorial-exercise" data-label="ex-final-chi-square"
+<p>Use a uniform prior and data with 18 heads in 30 flips. Plot the
+posterior and compute the posterior probability that
+<code>theta &gt; 0.5</code>. Then write one sentence interpreting the
+probability.</p>
+<div class="tutorial-exercise" data-label="ex-final-posterior"
 data-completion="1" data-diagnostics="1" data-startover="1"
 data-lines="0" data-pipe="|&gt;">
 <script type="application/json" data-ui-opts="1">{"engine":"r","has_checker":false,"caption":"<span data-i18n=\"text.enginecap\" data-i18n-opts=\"{&quot;engine&quot;:&quot;R&quot;}\">R Code<\/span>"}</script>
 </div>
 <div class="tutorial-exercise-support"
-data-label="ex-final-chi-square-hint-1" data-completion="1"
+data-label="ex-final-posterior-hint-1" data-completion="1"
 data-diagnostics="1" data-startover="1" data-lines="0"
 data-pipe="|&gt;">
-<pre class="text"><code># Filter Age == &quot;Adult&quot;, aggregate counts by Sex and Survived, then use xtabs().</code></pre>
+<pre class="text"><code># Set heads &lt;- 18 and flips &lt;- 30, then reuse the grid posterior pattern.</code></pre>
 </div>
-<div id="ex_final_chi_square_solution_code" class="shiny-html-output"></div>
+<div id="ex_final_posterior_solution_code" class="shiny-html-output"></div>
 </div>
 <div id="section-submit" class="section level2">
 <h2>Submit</h2>
@@ -338,7 +328,7 @@ solutions, please enter your identifying information, then click the button belo
 <label class="control-label" id="studentID-label" for="studentID">What is your student ID?</label>
 <input id="studentID" type="text" class="shiny-input-text form-control" value="" data-update-on="change"/>
 </div>
-<div id="out6940eedb2c712dee" class="shiny-text-output"></div>
+<div id="oute469779df9172c25" class="shiny-text-output"></div>
 </div>
 <div class="row" style="padding-bottom: 0.5em;">
 <div class="col-sm-3">
@@ -411,17 +401,7 @@ tutorial_options(exercise.eval = FALSE)
 
 my_reveal_time <- "2026-06-20 15:00:00"
 
-population <- tibble(
-  person = 1:10000,
-  supports_policy = rbinom(10000, size = 1, prob = 0.58)
-)
-
-prop_ci <- function(p_hat, n) {
-  se <- sqrt(p_hat * (1 - p_hat) / n)
-  lower <- p_hat - 1.96 * se
-  upper <- p_hat + 1.96 * se
-  c(lower, upper)
-}
+theta_grid <- seq(0, 1, length.out = 101)
 
 is_server_context <- function(.envir) {
   inherits(.envir$input, "reactivevalues") &
@@ -587,10 +567,7 @@ output$`tutorial-exercise-load-packages-output` <- renderUI({
 learnr:::store_exercise_cache(structure(list(label = "load-packages", global_setup = structure(c("library(learnr)", 
 "library(tidyverse)", "library(shiny)", "", "knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)", 
 "tutorial_options(exercise.eval = FALSE)", "", "my_reveal_time <- \"2026-06-20 15:00:00\"", 
-"", "population <- tibble(", "  person = 1:10000,", "  supports_policy = rbinom(10000, size = 1, prob = 0.58)", 
-")", "", "prop_ci <- function(p_hat, n) {", "  se <- sqrt(p_hat * (1 - p_hat) / n)", 
-"  lower <- p_hat - 1.96 * se", "  upper <- p_hat + 1.96 * se", 
-"  c(lower, upper)", "}", "", "is_server_context <- function(.envir) {", 
+"", "theta_grid <- seq(0, 1, length.out = 101)", "", "is_server_context <- function(.envir) {", 
 "  inherits(.envir$input, \"reactivevalues\") &", "    inherits(.envir$output, \"shinyoutput\") &", 
 "    inherits(.envir$session, \"ShinySession\")", "}", "", "check_server_context <- function(.envir) {", 
 "  if (!is_server_context(.envir)) {", "    calling_func <- deparse(sys.calls()[[sys.nframe() - 1]])", 
@@ -652,10 +629,10 @@ learnr:::store_exercise_cache(structure(list(label = "load-packages", global_set
         eval = FALSE, echo = TRUE, results = "markup", tidy = FALSE, 
         tidy.opts = NULL, collapse = FALSE, prompt = FALSE, comment = NA, 
         highlight = FALSE, size = "normalsize", background = "#F7F7F7", 
-        strip.white = TRUE, cache = 0, cache.path = "01-06-lesson_cache/html/", 
+        strip.white = TRUE, cache = 0, cache.path = "01-07-lesson_cache/html/", 
         cache.vars = NULL, cache.lazy = TRUE, dependson = NULL, 
         autodep = FALSE, cache.rebuild = FALSE, fig.keep = "high", 
-        fig.show = "asis", fig.align = "default", fig.path = "01-06-lesson_files/figure-html/", 
+        fig.show = "asis", fig.align = "default", fig.path = "01-07-lesson_files/figure-html/", 
         dev = "png", dev.args = NULL, dpi = 192, fig.ext = "png", 
         fig.width = 6.5, fig.height = 4, fig.env = "figure", 
         fig.cap = NULL, fig.scap = NULL, fig.lp = "fig:", fig.subcap = NULL, 
@@ -673,21 +650,18 @@ learnr:::store_exercise_cache(structure(list(label = "load-packages", global_set
 </script>
  
 <script type="application/shiny-prerendered" data-context="server">
-`tutorial-exercise-create-population-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-create-population-code-editor`)), session)
-output$`tutorial-exercise-create-population-output` <- renderUI({
-  `tutorial-exercise-create-population-result`()
+`tutorial-exercise-diagnostic-counts-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-diagnostic-counts-code-editor`)), session)
+output$`tutorial-exercise-diagnostic-counts-output` <- renderUI({
+  `tutorial-exercise-diagnostic-counts-result`()
 })
 </script>
 
 
 <script type="application/shiny-prerendered" data-context="server">
-learnr:::store_exercise_cache(structure(list(label = "create-population", global_setup = structure(c("library(learnr)", 
+learnr:::store_exercise_cache(structure(list(label = "diagnostic-counts", global_setup = structure(c("library(learnr)", 
 "library(tidyverse)", "library(shiny)", "", "knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)", 
 "tutorial_options(exercise.eval = FALSE)", "", "my_reveal_time <- \"2026-06-20 15:00:00\"", 
-"", "population <- tibble(", "  person = 1:10000,", "  supports_policy = rbinom(10000, size = 1, prob = 0.58)", 
-")", "", "prop_ci <- function(p_hat, n) {", "  se <- sqrt(p_hat * (1 - p_hat) / n)", 
-"  lower <- p_hat - 1.96 * se", "  upper <- p_hat + 1.96 * se", 
-"  c(lower, upper)", "}", "", "is_server_context <- function(.envir) {", 
+"", "theta_grid <- seq(0, 1, length.out = 101)", "", "is_server_context <- function(.envir) {", 
 "  inherits(.envir$input, \"reactivevalues\") &", "    inherits(.envir$output, \"shinyoutput\") &", 
 "    inherits(.envir$session, \"ShinySession\")", "}", "", "check_server_context <- function(.envir) {", 
 "  if (!is_server_context(.envir)) {", "    calling_func <- deparse(sys.calls()[[sys.nframe() - 1]])", 
@@ -742,17 +716,17 @@ learnr:::store_exercise_cache(structure(list(label = "create-population", global
 "    if (Sys.time() < release_at) {", "      return(NULL)", "    }", 
 "    solution_code_card(code, title)", "  })", "}"), chunk_opts = list(
     label = "setup", include = FALSE)), setup = NULL, chunks = list(
-    list(label = "create-population", code = "set.seed(213)\n\npopulation <- tibble(\n  person = 1:10000,\n  supports_policy = rbinom(10000, size = 1, prob = 0.58)\n)\n\npopulation %>%\n  summarise(parameter = mean(supports_policy))", 
-        opts = list(label = "\"create-population\"", exercise = "TRUE"), 
+    list(label = "diagnostic-counts", code = "diagnostic_table <- tibble(\n  group = c(\"condition\", \"no_condition\"),\n  people = c(100, 9900),\n  positive_rate = c(0.95, 0.10)\n) %>%\n  mutate(\n    positive = people * positive_rate,\n    negative = people - positive\n  )\n\ndiagnostic_table", 
+        opts = list(label = "\"diagnostic-counts\"", exercise = "TRUE"), 
         engine = "r")), code_check = NULL, error_check = NULL, 
     check = NULL, solution = NULL, tests = NULL, options = list(
         eval = FALSE, echo = TRUE, results = "markup", tidy = FALSE, 
         tidy.opts = NULL, collapse = FALSE, prompt = FALSE, comment = NA, 
         highlight = FALSE, size = "normalsize", background = "#F7F7F7", 
-        strip.white = TRUE, cache = 0, cache.path = "01-06-lesson_cache/html/", 
+        strip.white = TRUE, cache = 0, cache.path = "01-07-lesson_cache/html/", 
         cache.vars = NULL, cache.lazy = TRUE, dependson = NULL, 
         autodep = FALSE, cache.rebuild = FALSE, fig.keep = "high", 
-        fig.show = "asis", fig.align = "default", fig.path = "01-06-lesson_files/figure-html/", 
+        fig.show = "asis", fig.align = "default", fig.path = "01-07-lesson_files/figure-html/", 
         dev = "png", dev.args = NULL, dpi = 192, fig.ext = "png", 
         fig.width = 6.5, fig.height = 4, fig.env = "figure", 
         fig.cap = NULL, fig.scap = NULL, fig.lp = "fig:", fig.subcap = NULL, 
@@ -761,230 +735,31 @@ learnr:::store_exercise_cache(structure(list(label = "create-population", global
         aniopts = "controls,loop", warning = FALSE, error = FALSE, 
         message = FALSE, render = NULL, ref.label = NULL, child = NULL, 
         engine = "r", split = FALSE, include = TRUE, purl = TRUE, 
-        max.print = 1000, exercise.eval = FALSE, label = "create-population", 
-        exercise = TRUE, code = c("set.seed(213)", "", "population <- tibble(", 
-        "  person = 1:10000,", "  supports_policy = rbinom(10000, size = 1, prob = 0.58)", 
-        ")", "", "population %>%", "  summarise(parameter = mean(supports_policy))"
-        ), out.width.px = 624, out.height.px = 384, params.src = "create-population, exercise=TRUE", 
-        fig.num = 0, exercise.df_print = "paged", exercise.checker = "NULL"), 
-    engine = "r", version = "4"), class = c("r", "tutorial_exercise"
-)))
-</script>
- 
-<script type="application/shiny-prerendered" data-context="server">
-`tutorial-exercise-one-sample-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-one-sample-code-editor`)), session)
-output$`tutorial-exercise-one-sample-output` <- renderUI({
-  `tutorial-exercise-one-sample-result`()
-})
-</script>
-
-
-<script type="application/shiny-prerendered" data-context="server">
-learnr:::store_exercise_cache(structure(list(label = "one-sample", global_setup = structure(c("library(learnr)", 
-"library(tidyverse)", "library(shiny)", "", "knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)", 
-"tutorial_options(exercise.eval = FALSE)", "", "my_reveal_time <- \"2026-06-20 15:00:00\"", 
-"", "population <- tibble(", "  person = 1:10000,", "  supports_policy = rbinom(10000, size = 1, prob = 0.58)", 
-")", "", "prop_ci <- function(p_hat, n) {", "  se <- sqrt(p_hat * (1 - p_hat) / n)", 
-"  lower <- p_hat - 1.96 * se", "  upper <- p_hat + 1.96 * se", 
-"  c(lower, upper)", "}", "", "is_server_context <- function(.envir) {", 
-"  inherits(.envir$input, \"reactivevalues\") &", "    inherits(.envir$output, \"shinyoutput\") &", 
-"    inherits(.envir$session, \"ShinySession\")", "}", "", "check_server_context <- function(.envir) {", 
-"  if (!is_server_context(.envir)) {", "    calling_func <- deparse(sys.calls()[[sys.nframe() - 1]])", 
-"    err <- paste0(\"Function `\", calling_func, \"` must be called from an Rmd chunk where `context = \\\"server\\\"`\")", 
-"    stop(err, call. = FALSE)", "  }", "}", "", "encoder_logic <- function(strip_output = FALSE) {", 
-"  p <- parent.frame()", "  check_server_context(p)", "  assign(\"strip_output\", strip_output, envir = p)", 
-"  local(", "    {", "      encoded_txt <- shiny::eventReactive(", 
-"        input$hash_generate,", "        {", "          state <- learnr:::get_tutorial_state()", 
-"          shiny::validate(shiny::need(length(state) > 0, \"No progress yet.\"))", 
-"          shiny::validate(shiny::need(nchar(input$name) > 0, \"No name entered.\"))", 
-"          shiny::validate(shiny::need(nchar(input$studentID) > 0, \"Please enter your student ID\"))", 
-"          user_state <- purrr::map_dfr(state, identity, .id = \"label\")", 
-"          user_state <- dplyr::group_by(user_state, label, type, correct)", 
-"          user_state <- dplyr::summarize(", "            user_state,", 
-"            answer = list(answer),", "            timestamp = dplyr::first(timestamp),", 
-"            .groups = \"drop\"", "          )", "          user_state <- dplyr::relocate(user_state, correct, .before = timestamp)", 
-"          user_info <- tibble(", "            label = c(\"student_name\", \"student_id\"),", 
-"            type = \"identifier\",", "            answer = as.list(c(input$name, input$studentID)),", 
-"            timestamp = format(Sys.time(), \"%Y-%m-%d %H:%M:%S %Z\", tz = \"UTC\")", 
-"          )", "          learnrhash::encode_obj(bind_rows(user_info, user_state))", 
-"        }", "      )", "      output$hash_output <- shiny::renderText(encoded_txt())", 
-"    },", "    envir = p", "  )", "}", "", "hash_encoder_ui <- {", 
-"  shiny::div(", "    \"If you have completed this tutorial and are happy with all of your\",", 
-"    \"solutions, please enter your identifying information, then click the button below to generate your hash\",", 
-"    textInput(\"name\", \"What's your name?\"),", "    textInput(\"studentID\", \"What is your student ID?\"),", 
-"    renderText({", "      input$caption", "    })", "  )", "}", 
-"", "solution_code_card <- function(code, title = \"Solution\") {", 
-"  tags$div(", "    style = paste(", "      \"margin: 1rem 0 1.25rem;\",", 
-"      \"border: 1px solid #d7e3f3;\",", "      \"border-left: 5px solid #2f6f9f;\",", 
-"      \"border-radius: 8px;\",", "      \"background: #f8fbff;\",", 
-"      \"box-shadow: 0 2px 8px rgba(31, 45, 61, 0.08);\",", "      \"overflow: hidden;\"", 
-"    ),", "    tags$div(", "      style = paste(", "        \"display: flex;\",", 
-"        \"align-items: center;\",", "        \"justify-content: space-between;\",", 
-"        \"gap: 0.75rem;\",", "        \"padding: 0.7rem 0.9rem;\",", 
-"        \"background: #eef6ff;\",", "        \"border-bottom: 1px solid #d7e3f3;\"", 
-"      ),", "      tags$strong(title, style = \"color: #1f4e79; font-size: 1rem;\"),", 
-"      tags$span(", "        \"released\",", "        style = paste(", 
-"          \"padding: 0.15rem 0.5rem;\",", "          \"border-radius: 999px;\",", 
-"          \"background: #ffffff;\",", "          \"color: #3c6478;\",", 
-"          \"font-size: 0.78rem;\",", "          \"font-weight: 600;\"", 
-"        )", "      )", "    ),", "    tags$pre(", "      style = paste(", 
-"        \"margin: 0;\",", "        \"padding: 0.9rem 1rem;\",", 
-"        \"background: #ffffff;\",", "        \"border: 0;\",", 
-"        \"white-space: pre-wrap;\",", "        \"text-align: left;\"", 
-"      ),", "      tags$code(", "        htmltools::HTML(htmltools::htmlEscape(code)),", 
-"        style = \"display: block; color: #243447; font-size: 0.95rem; line-height: 1.45;\"", 
-"      )", "    )", "  )", "}", "", "timed_solution <- function(output_id, code, title = \"Solution\",", 
-"                           reveal_time = my_reveal_time,", "                           tz = \"America/New_York\",", 
-"                           check_every_ms = 1000) {", "  p <- parent.frame()", 
-"  check_server_context(p)", "", "  p$output[[output_id]] <- shiny::renderUI({", 
-"    shiny::invalidateLater(check_every_ms, p$session)", "    release_at <- as.POSIXct(reveal_time, tz = tz)", 
-"    if (Sys.time() < release_at) {", "      return(NULL)", "    }", 
-"    solution_code_card(code, title)", "  })", "}"), chunk_opts = list(
-    label = "setup", include = FALSE)), setup = NULL, chunks = list(
-    list(label = "one-sample", code = "set.seed(213)\n\none_sample <- population %>%\n  slice_sample(n = 80)\n\none_sample %>%\n  summarise(p_hat = mean(supports_policy))", 
-        opts = list(label = "\"one-sample\"", exercise = "TRUE"), 
-        engine = "r")), code_check = NULL, error_check = NULL, 
-    check = NULL, solution = NULL, tests = NULL, options = list(
-        eval = FALSE, echo = TRUE, results = "markup", tidy = FALSE, 
-        tidy.opts = NULL, collapse = FALSE, prompt = FALSE, comment = NA, 
-        highlight = FALSE, size = "normalsize", background = "#F7F7F7", 
-        strip.white = TRUE, cache = 0, cache.path = "01-06-lesson_cache/html/", 
-        cache.vars = NULL, cache.lazy = TRUE, dependson = NULL, 
-        autodep = FALSE, cache.rebuild = FALSE, fig.keep = "high", 
-        fig.show = "asis", fig.align = "default", fig.path = "01-06-lesson_files/figure-html/", 
-        dev = "png", dev.args = NULL, dpi = 192, fig.ext = "png", 
-        fig.width = 6.5, fig.height = 4, fig.env = "figure", 
-        fig.cap = NULL, fig.scap = NULL, fig.lp = "fig:", fig.subcap = NULL, 
-        fig.pos = "", out.width = 624, out.height = NULL, out.extra = NULL, 
-        fig.retina = 2, external = TRUE, sanitize = FALSE, interval = 1, 
-        aniopts = "controls,loop", warning = FALSE, error = FALSE, 
-        message = FALSE, render = NULL, ref.label = NULL, child = NULL, 
-        engine = "r", split = FALSE, include = TRUE, purl = TRUE, 
-        max.print = 1000, exercise.eval = FALSE, label = "one-sample", 
-        exercise = TRUE, code = c("set.seed(213)", "", "one_sample <- population %>%", 
-        "  slice_sample(n = 80)", "", "one_sample %>%", "  summarise(p_hat = mean(supports_policy))"
-        ), out.width.px = 624, out.height.px = 384, params.src = "one-sample, exercise=TRUE", 
-        fig.num = 0, exercise.df_print = "paged", exercise.checker = "NULL"), 
-    engine = "r", version = "4"), class = c("r", "tutorial_exercise"
-)))
-</script>
- 
-<script type="application/shiny-prerendered" data-context="server">
-`tutorial-exercise-confidence-interval-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-confidence-interval-code-editor`)), session)
-output$`tutorial-exercise-confidence-interval-output` <- renderUI({
-  `tutorial-exercise-confidence-interval-result`()
-})
-</script>
-
-
-<script type="application/shiny-prerendered" data-context="server">
-learnr:::store_exercise_cache(structure(list(label = "confidence-interval", global_setup = structure(c("library(learnr)", 
-"library(tidyverse)", "library(shiny)", "", "knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)", 
-"tutorial_options(exercise.eval = FALSE)", "", "my_reveal_time <- \"2026-06-20 15:00:00\"", 
-"", "population <- tibble(", "  person = 1:10000,", "  supports_policy = rbinom(10000, size = 1, prob = 0.58)", 
-")", "", "prop_ci <- function(p_hat, n) {", "  se <- sqrt(p_hat * (1 - p_hat) / n)", 
-"  lower <- p_hat - 1.96 * se", "  upper <- p_hat + 1.96 * se", 
-"  c(lower, upper)", "}", "", "is_server_context <- function(.envir) {", 
-"  inherits(.envir$input, \"reactivevalues\") &", "    inherits(.envir$output, \"shinyoutput\") &", 
-"    inherits(.envir$session, \"ShinySession\")", "}", "", "check_server_context <- function(.envir) {", 
-"  if (!is_server_context(.envir)) {", "    calling_func <- deparse(sys.calls()[[sys.nframe() - 1]])", 
-"    err <- paste0(\"Function `\", calling_func, \"` must be called from an Rmd chunk where `context = \\\"server\\\"`\")", 
-"    stop(err, call. = FALSE)", "  }", "}", "", "encoder_logic <- function(strip_output = FALSE) {", 
-"  p <- parent.frame()", "  check_server_context(p)", "  assign(\"strip_output\", strip_output, envir = p)", 
-"  local(", "    {", "      encoded_txt <- shiny::eventReactive(", 
-"        input$hash_generate,", "        {", "          state <- learnr:::get_tutorial_state()", 
-"          shiny::validate(shiny::need(length(state) > 0, \"No progress yet.\"))", 
-"          shiny::validate(shiny::need(nchar(input$name) > 0, \"No name entered.\"))", 
-"          shiny::validate(shiny::need(nchar(input$studentID) > 0, \"Please enter your student ID\"))", 
-"          user_state <- purrr::map_dfr(state, identity, .id = \"label\")", 
-"          user_state <- dplyr::group_by(user_state, label, type, correct)", 
-"          user_state <- dplyr::summarize(", "            user_state,", 
-"            answer = list(answer),", "            timestamp = dplyr::first(timestamp),", 
-"            .groups = \"drop\"", "          )", "          user_state <- dplyr::relocate(user_state, correct, .before = timestamp)", 
-"          user_info <- tibble(", "            label = c(\"student_name\", \"student_id\"),", 
-"            type = \"identifier\",", "            answer = as.list(c(input$name, input$studentID)),", 
-"            timestamp = format(Sys.time(), \"%Y-%m-%d %H:%M:%S %Z\", tz = \"UTC\")", 
-"          )", "          learnrhash::encode_obj(bind_rows(user_info, user_state))", 
-"        }", "      )", "      output$hash_output <- shiny::renderText(encoded_txt())", 
-"    },", "    envir = p", "  )", "}", "", "hash_encoder_ui <- {", 
-"  shiny::div(", "    \"If you have completed this tutorial and are happy with all of your\",", 
-"    \"solutions, please enter your identifying information, then click the button below to generate your hash\",", 
-"    textInput(\"name\", \"What's your name?\"),", "    textInput(\"studentID\", \"What is your student ID?\"),", 
-"    renderText({", "      input$caption", "    })", "  )", "}", 
-"", "solution_code_card <- function(code, title = \"Solution\") {", 
-"  tags$div(", "    style = paste(", "      \"margin: 1rem 0 1.25rem;\",", 
-"      \"border: 1px solid #d7e3f3;\",", "      \"border-left: 5px solid #2f6f9f;\",", 
-"      \"border-radius: 8px;\",", "      \"background: #f8fbff;\",", 
-"      \"box-shadow: 0 2px 8px rgba(31, 45, 61, 0.08);\",", "      \"overflow: hidden;\"", 
-"    ),", "    tags$div(", "      style = paste(", "        \"display: flex;\",", 
-"        \"align-items: center;\",", "        \"justify-content: space-between;\",", 
-"        \"gap: 0.75rem;\",", "        \"padding: 0.7rem 0.9rem;\",", 
-"        \"background: #eef6ff;\",", "        \"border-bottom: 1px solid #d7e3f3;\"", 
-"      ),", "      tags$strong(title, style = \"color: #1f4e79; font-size: 1rem;\"),", 
-"      tags$span(", "        \"released\",", "        style = paste(", 
-"          \"padding: 0.15rem 0.5rem;\",", "          \"border-radius: 999px;\",", 
-"          \"background: #ffffff;\",", "          \"color: #3c6478;\",", 
-"          \"font-size: 0.78rem;\",", "          \"font-weight: 600;\"", 
-"        )", "      )", "    ),", "    tags$pre(", "      style = paste(", 
-"        \"margin: 0;\",", "        \"padding: 0.9rem 1rem;\",", 
-"        \"background: #ffffff;\",", "        \"border: 0;\",", 
-"        \"white-space: pre-wrap;\",", "        \"text-align: left;\"", 
-"      ),", "      tags$code(", "        htmltools::HTML(htmltools::htmlEscape(code)),", 
-"        style = \"display: block; color: #243447; font-size: 0.95rem; line-height: 1.45;\"", 
-"      )", "    )", "  )", "}", "", "timed_solution <- function(output_id, code, title = \"Solution\",", 
-"                           reveal_time = my_reveal_time,", "                           tz = \"America/New_York\",", 
-"                           check_every_ms = 1000) {", "  p <- parent.frame()", 
-"  check_server_context(p)", "", "  p$output[[output_id]] <- shiny::renderUI({", 
-"    shiny::invalidateLater(check_every_ms, p$session)", "    release_at <- as.POSIXct(reveal_time, tz = tz)", 
-"    if (Sys.time() < release_at) {", "      return(NULL)", "    }", 
-"    solution_code_card(code, title)", "  })", "}"), chunk_opts = list(
-    label = "setup", include = FALSE)), setup = NULL, chunks = list(
-    list(label = "confidence-interval", code = "p_hat <- mean(one_sample$supports_policy)\nn <- nrow(one_sample)\nstandard_error <- sqrt(p_hat * (1 - p_hat) / n)\n\nlower <- p_hat - 1.96 * standard_error\nupper <- p_hat + 1.96 * standard_error\n\nc(lower, upper)", 
-        opts = list(label = "\"confidence-interval\"", exercise = "TRUE"), 
-        engine = "r")), code_check = NULL, error_check = NULL, 
-    check = NULL, solution = NULL, tests = NULL, options = list(
-        eval = FALSE, echo = TRUE, results = "markup", tidy = FALSE, 
-        tidy.opts = NULL, collapse = FALSE, prompt = FALSE, comment = NA, 
-        highlight = FALSE, size = "normalsize", background = "#F7F7F7", 
-        strip.white = TRUE, cache = 0, cache.path = "01-06-lesson_cache/html/", 
-        cache.vars = NULL, cache.lazy = TRUE, dependson = NULL, 
-        autodep = FALSE, cache.rebuild = FALSE, fig.keep = "high", 
-        fig.show = "asis", fig.align = "default", fig.path = "01-06-lesson_files/figure-html/", 
-        dev = "png", dev.args = NULL, dpi = 192, fig.ext = "png", 
-        fig.width = 6.5, fig.height = 4, fig.env = "figure", 
-        fig.cap = NULL, fig.scap = NULL, fig.lp = "fig:", fig.subcap = NULL, 
-        fig.pos = "", out.width = 624, out.height = NULL, out.extra = NULL, 
-        fig.retina = 2, external = TRUE, sanitize = FALSE, interval = 1, 
-        aniopts = "controls,loop", warning = FALSE, error = FALSE, 
-        message = FALSE, render = NULL, ref.label = NULL, child = NULL, 
-        engine = "r", split = FALSE, include = TRUE, purl = TRUE, 
-        max.print = 1000, exercise.eval = FALSE, label = "confidence-interval", 
-        exercise = TRUE, code = c("p_hat <- mean(one_sample$supports_policy)", 
-        "n <- nrow(one_sample)", "standard_error <- sqrt(p_hat * (1 - p_hat) / n)", 
-        "", "lower <- p_hat - 1.96 * standard_error", "upper <- p_hat + 1.96 * standard_error", 
-        "", "c(lower, upper)"), out.width.px = 624, out.height.px = 384, 
-        params.src = "confidence-interval, exercise=TRUE", fig.num = 0, 
+        max.print = 1000, exercise.eval = FALSE, label = "diagnostic-counts", 
+        exercise = TRUE, code = c("diagnostic_table <- tibble(", 
+        "  group = c(\"condition\", \"no_condition\"),", "  people = c(100, 9900),", 
+        "  positive_rate = c(0.95, 0.10)", ") %>%", "  mutate(", 
+        "    positive = people * positive_rate,", "    negative = people - positive", 
+        "  )", "", "diagnostic_table"), out.width.px = 624, out.height.px = 384, 
+        params.src = "diagnostic-counts, exercise=TRUE", fig.num = 0, 
         exercise.df_print = "paged", exercise.checker = "NULL"), 
     engine = "r", version = "4"), class = c("r", "tutorial_exercise"
 )))
 </script>
  
 <script type="application/shiny-prerendered" data-context="server">
-`tutorial-exercise-ex-prop-ci-function-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-ex-prop-ci-function-code-editor`)), session)
-output$`tutorial-exercise-ex-prop-ci-function-output` <- renderUI({
-  `tutorial-exercise-ex-prop-ci-function-result`()
+`tutorial-exercise-posterior-diagnostic-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-posterior-diagnostic-code-editor`)), session)
+output$`tutorial-exercise-posterior-diagnostic-output` <- renderUI({
+  `tutorial-exercise-posterior-diagnostic-result`()
 })
 </script>
 
 
 <script type="application/shiny-prerendered" data-context="server">
-learnr:::store_exercise_cache(structure(list(label = "ex-prop-ci-function", global_setup = structure(c("library(learnr)", 
+learnr:::store_exercise_cache(structure(list(label = "posterior-diagnostic", global_setup = structure(c("library(learnr)", 
 "library(tidyverse)", "library(shiny)", "", "knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)", 
 "tutorial_options(exercise.eval = FALSE)", "", "my_reveal_time <- \"2026-06-20 15:00:00\"", 
-"", "population <- tibble(", "  person = 1:10000,", "  supports_policy = rbinom(10000, size = 1, prob = 0.58)", 
-")", "", "prop_ci <- function(p_hat, n) {", "  se <- sqrt(p_hat * (1 - p_hat) / n)", 
-"  lower <- p_hat - 1.96 * se", "  upper <- p_hat + 1.96 * se", 
-"  c(lower, upper)", "}", "", "is_server_context <- function(.envir) {", 
+"", "theta_grid <- seq(0, 1, length.out = 101)", "", "is_server_context <- function(.envir) {", 
 "  inherits(.envir$input, \"reactivevalues\") &", "    inherits(.envir$output, \"shinyoutput\") &", 
 "    inherits(.envir$session, \"ShinySession\")", "}", "", "check_server_context <- function(.envir) {", 
 "  if (!is_server_context(.envir)) {", "    calling_func <- deparse(sys.calls()[[sys.nframe() - 1]])", 
@@ -1039,17 +814,17 @@ learnr:::store_exercise_cache(structure(list(label = "ex-prop-ci-function", glob
 "    if (Sys.time() < release_at) {", "      return(NULL)", "    }", 
 "    solution_code_card(code, title)", "  })", "}"), chunk_opts = list(
     label = "setup", include = FALSE)), setup = NULL, chunks = list(
-    list(label = "ex-prop-ci-function", code = "", opts = list(
-        label = "\"ex-prop-ci-function\"", exercise = "TRUE"), 
+    list(label = "posterior-diagnostic", code = "diagnostic_table %>%\n  summarise(\n    posterior_condition_given_positive =\n      positive[group == \"condition\"] / sum(positive)\n  )", 
+        opts = list(label = "\"posterior-diagnostic\"", exercise = "TRUE"), 
         engine = "r")), code_check = NULL, error_check = NULL, 
     check = NULL, solution = NULL, tests = NULL, options = list(
         eval = FALSE, echo = TRUE, results = "markup", tidy = FALSE, 
         tidy.opts = NULL, collapse = FALSE, prompt = FALSE, comment = NA, 
         highlight = FALSE, size = "normalsize", background = "#F7F7F7", 
-        strip.white = TRUE, cache = 0, cache.path = "01-06-lesson_cache/html/", 
+        strip.white = TRUE, cache = 0, cache.path = "01-07-lesson_cache/html/", 
         cache.vars = NULL, cache.lazy = TRUE, dependson = NULL, 
         autodep = FALSE, cache.rebuild = FALSE, fig.keep = "high", 
-        fig.show = "asis", fig.align = "default", fig.path = "01-06-lesson_files/figure-html/", 
+        fig.show = "asis", fig.align = "default", fig.path = "01-07-lesson_files/figure-html/", 
         dev = "png", dev.args = NULL, dpi = 192, fig.ext = "png", 
         fig.width = 6.5, fig.height = 4, fig.env = "figure", 
         fig.cap = NULL, fig.scap = NULL, fig.lp = "fig:", fig.subcap = NULL, 
@@ -1058,9 +833,104 @@ learnr:::store_exercise_cache(structure(list(label = "ex-prop-ci-function", glob
         aniopts = "controls,loop", warning = FALSE, error = FALSE, 
         message = FALSE, render = NULL, ref.label = NULL, child = NULL, 
         engine = "r", split = FALSE, include = TRUE, purl = TRUE, 
-        max.print = 1000, exercise.eval = FALSE, label = "ex-prop-ci-function", 
+        max.print = 1000, exercise.eval = FALSE, label = "posterior-diagnostic", 
+        exercise = TRUE, code = c("diagnostic_table %>%", "  summarise(", 
+        "    posterior_condition_given_positive =", "      positive[group == \"condition\"] / sum(positive)", 
+        "  )"), out.width.px = 624, out.height.px = 384, params.src = "posterior-diagnostic, exercise=TRUE", 
+        fig.num = 0, exercise.df_print = "paged", exercise.checker = "NULL"), 
+    engine = "r", version = "4"), class = c("r", "tutorial_exercise"
+)))
+</script>
+ 
+<script type="application/shiny-prerendered" data-context="server">
+`tutorial-exercise-ex-false-positive-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-ex-false-positive-code-editor`)), session)
+output$`tutorial-exercise-ex-false-positive-output` <- renderUI({
+  `tutorial-exercise-ex-false-positive-result`()
+})
+</script>
+
+
+<script type="application/shiny-prerendered" data-context="server">
+learnr:::store_exercise_cache(structure(list(label = "ex-false-positive", global_setup = structure(c("library(learnr)", 
+"library(tidyverse)", "library(shiny)", "", "knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)", 
+"tutorial_options(exercise.eval = FALSE)", "", "my_reveal_time <- \"2026-06-20 15:00:00\"", 
+"", "theta_grid <- seq(0, 1, length.out = 101)", "", "is_server_context <- function(.envir) {", 
+"  inherits(.envir$input, \"reactivevalues\") &", "    inherits(.envir$output, \"shinyoutput\") &", 
+"    inherits(.envir$session, \"ShinySession\")", "}", "", "check_server_context <- function(.envir) {", 
+"  if (!is_server_context(.envir)) {", "    calling_func <- deparse(sys.calls()[[sys.nframe() - 1]])", 
+"    err <- paste0(\"Function `\", calling_func, \"` must be called from an Rmd chunk where `context = \\\"server\\\"`\")", 
+"    stop(err, call. = FALSE)", "  }", "}", "", "encoder_logic <- function(strip_output = FALSE) {", 
+"  p <- parent.frame()", "  check_server_context(p)", "  assign(\"strip_output\", strip_output, envir = p)", 
+"  local(", "    {", "      encoded_txt <- shiny::eventReactive(", 
+"        input$hash_generate,", "        {", "          state <- learnr:::get_tutorial_state()", 
+"          shiny::validate(shiny::need(length(state) > 0, \"No progress yet.\"))", 
+"          shiny::validate(shiny::need(nchar(input$name) > 0, \"No name entered.\"))", 
+"          shiny::validate(shiny::need(nchar(input$studentID) > 0, \"Please enter your student ID\"))", 
+"          user_state <- purrr::map_dfr(state, identity, .id = \"label\")", 
+"          user_state <- dplyr::group_by(user_state, label, type, correct)", 
+"          user_state <- dplyr::summarize(", "            user_state,", 
+"            answer = list(answer),", "            timestamp = dplyr::first(timestamp),", 
+"            .groups = \"drop\"", "          )", "          user_state <- dplyr::relocate(user_state, correct, .before = timestamp)", 
+"          user_info <- tibble(", "            label = c(\"student_name\", \"student_id\"),", 
+"            type = \"identifier\",", "            answer = as.list(c(input$name, input$studentID)),", 
+"            timestamp = format(Sys.time(), \"%Y-%m-%d %H:%M:%S %Z\", tz = \"UTC\")", 
+"          )", "          learnrhash::encode_obj(bind_rows(user_info, user_state))", 
+"        }", "      )", "      output$hash_output <- shiny::renderText(encoded_txt())", 
+"    },", "    envir = p", "  )", "}", "", "hash_encoder_ui <- {", 
+"  shiny::div(", "    \"If you have completed this tutorial and are happy with all of your\",", 
+"    \"solutions, please enter your identifying information, then click the button below to generate your hash\",", 
+"    textInput(\"name\", \"What's your name?\"),", "    textInput(\"studentID\", \"What is your student ID?\"),", 
+"    renderText({", "      input$caption", "    })", "  )", "}", 
+"", "solution_code_card <- function(code, title = \"Solution\") {", 
+"  tags$div(", "    style = paste(", "      \"margin: 1rem 0 1.25rem;\",", 
+"      \"border: 1px solid #d7e3f3;\",", "      \"border-left: 5px solid #2f6f9f;\",", 
+"      \"border-radius: 8px;\",", "      \"background: #f8fbff;\",", 
+"      \"box-shadow: 0 2px 8px rgba(31, 45, 61, 0.08);\",", "      \"overflow: hidden;\"", 
+"    ),", "    tags$div(", "      style = paste(", "        \"display: flex;\",", 
+"        \"align-items: center;\",", "        \"justify-content: space-between;\",", 
+"        \"gap: 0.75rem;\",", "        \"padding: 0.7rem 0.9rem;\",", 
+"        \"background: #eef6ff;\",", "        \"border-bottom: 1px solid #d7e3f3;\"", 
+"      ),", "      tags$strong(title, style = \"color: #1f4e79; font-size: 1rem;\"),", 
+"      tags$span(", "        \"released\",", "        style = paste(", 
+"          \"padding: 0.15rem 0.5rem;\",", "          \"border-radius: 999px;\",", 
+"          \"background: #ffffff;\",", "          \"color: #3c6478;\",", 
+"          \"font-size: 0.78rem;\",", "          \"font-weight: 600;\"", 
+"        )", "      )", "    ),", "    tags$pre(", "      style = paste(", 
+"        \"margin: 0;\",", "        \"padding: 0.9rem 1rem;\",", 
+"        \"background: #ffffff;\",", "        \"border: 0;\",", 
+"        \"white-space: pre-wrap;\",", "        \"text-align: left;\"", 
+"      ),", "      tags$code(", "        htmltools::HTML(htmltools::htmlEscape(code)),", 
+"        style = \"display: block; color: #243447; font-size: 0.95rem; line-height: 1.45;\"", 
+"      )", "    )", "  )", "}", "", "timed_solution <- function(output_id, code, title = \"Solution\",", 
+"                           reveal_time = my_reveal_time,", "                           tz = \"America/New_York\",", 
+"                           check_every_ms = 1000) {", "  p <- parent.frame()", 
+"  check_server_context(p)", "", "  p$output[[output_id]] <- shiny::renderUI({", 
+"    shiny::invalidateLater(check_every_ms, p$session)", "    release_at <- as.POSIXct(reveal_time, tz = tz)", 
+"    if (Sys.time() < release_at) {", "      return(NULL)", "    }", 
+"    solution_code_card(code, title)", "  })", "}"), chunk_opts = list(
+    label = "setup", include = FALSE)), setup = NULL, chunks = list(
+    list(label = "ex-false-positive", code = "", opts = list(
+        label = "\"ex-false-positive\"", exercise = "TRUE"), 
+        engine = "r")), code_check = NULL, error_check = NULL, 
+    check = NULL, solution = NULL, tests = NULL, options = list(
+        eval = FALSE, echo = TRUE, results = "markup", tidy = FALSE, 
+        tidy.opts = NULL, collapse = FALSE, prompt = FALSE, comment = NA, 
+        highlight = FALSE, size = "normalsize", background = "#F7F7F7", 
+        strip.white = TRUE, cache = 0, cache.path = "01-07-lesson_cache/html/", 
+        cache.vars = NULL, cache.lazy = TRUE, dependson = NULL, 
+        autodep = FALSE, cache.rebuild = FALSE, fig.keep = "high", 
+        fig.show = "asis", fig.align = "default", fig.path = "01-07-lesson_files/figure-html/", 
+        dev = "png", dev.args = NULL, dpi = 192, fig.ext = "png", 
+        fig.width = 6.5, fig.height = 4, fig.env = "figure", 
+        fig.cap = NULL, fig.scap = NULL, fig.lp = "fig:", fig.subcap = NULL, 
+        fig.pos = "", out.width = 624, out.height = NULL, out.extra = NULL, 
+        fig.retina = 2, external = TRUE, sanitize = FALSE, interval = 1, 
+        aniopts = "controls,loop", warning = FALSE, error = FALSE, 
+        message = FALSE, render = NULL, ref.label = NULL, child = NULL, 
+        engine = "r", split = FALSE, include = TRUE, purl = TRUE, 
+        max.print = 1000, exercise.eval = FALSE, label = "ex-false-positive", 
         exercise = TRUE, code = "", out.width.px = 624, out.height.px = 384, 
-        params.src = "ex-prop-ci-function, exercise=TRUE", fig.num = 0L, 
+        params.src = "ex-false-positive, exercise=TRUE", fig.num = 0L, 
         exercise.df_print = "paged", exercise.checker = "NULL"), 
     engine = "r", version = "4"), class = c("r", "tutorial_exercise"
 )))
@@ -1068,27 +938,24 @@ learnr:::store_exercise_cache(structure(list(label = "ex-prop-ci-function", glob
  
 <script type="application/shiny-prerendered" data-context="server">
 timed_solution(
-  "ex_prop_ci_function_solution_code",
-  "prop_ci <- function(p_hat, n) {\n  se <- sqrt(p_hat * (1 - p_hat) / n)\n  lower <- p_hat - 1.96 * se\n  upper <- p_hat + 1.96 * se\n  c(lower, upper)\n}\n\nprop_ci(p_hat = 0.60, n = 80)"
+  "ex_false_positive_solution_code",
+  "diagnostic_table <- tibble(\n  group = c(\"condition\", \"no_condition\"),\n  people = c(100, 9900),\n  positive_rate = c(0.95, 0.05)\n) %>%\n  mutate(\n    positive = people * positive_rate,\n    negative = people - positive\n  )\n\ndiagnostic_table %>%\n  summarise(\n    posterior_condition_given_positive =\n      positive[group == \"condition\"] / sum(positive)\n  )"
 )
 </script>
 
 
 <script type="application/shiny-prerendered" data-context="server">
-`tutorial-exercise-p-value-example-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-p-value-example-code-editor`)), session)
-output$`tutorial-exercise-p-value-example-output` <- renderUI({
-  `tutorial-exercise-p-value-example-result`()
+`tutorial-exercise-grid-prior-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-grid-prior-code-editor`)), session)
+output$`tutorial-exercise-grid-prior-output` <- renderUI({
+  `tutorial-exercise-grid-prior-result`()
 })
 </script>
  
 <script type="application/shiny-prerendered" data-context="server">
-learnr:::store_exercise_cache(structure(list(label = "p-value-example", global_setup = structure(c("library(learnr)", 
+learnr:::store_exercise_cache(structure(list(label = "grid-prior", global_setup = structure(c("library(learnr)", 
 "library(tidyverse)", "library(shiny)", "", "knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)", 
 "tutorial_options(exercise.eval = FALSE)", "", "my_reveal_time <- \"2026-06-20 15:00:00\"", 
-"", "population <- tibble(", "  person = 1:10000,", "  supports_policy = rbinom(10000, size = 1, prob = 0.58)", 
-")", "", "prop_ci <- function(p_hat, n) {", "  se <- sqrt(p_hat * (1 - p_hat) / n)", 
-"  lower <- p_hat - 1.96 * se", "  upper <- p_hat + 1.96 * se", 
-"  c(lower, upper)", "}", "", "is_server_context <- function(.envir) {", 
+"", "theta_grid <- seq(0, 1, length.out = 101)", "", "is_server_context <- function(.envir) {", 
 "  inherits(.envir$input, \"reactivevalues\") &", "    inherits(.envir$output, \"shinyoutput\") &", 
 "    inherits(.envir$session, \"ShinySession\")", "}", "", "check_server_context <- function(.envir) {", 
 "  if (!is_server_context(.envir)) {", "    calling_func <- deparse(sys.calls()[[sys.nframe() - 1]])", 
@@ -1143,17 +1010,17 @@ learnr:::store_exercise_cache(structure(list(label = "p-value-example", global_s
 "    if (Sys.time() < release_at) {", "      return(NULL)", "    }", 
 "    solution_code_card(code, title)", "  })", "}"), chunk_opts = list(
     label = "setup", include = FALSE)), setup = NULL, chunks = list(
-    list(label = "p-value-example", code = "null_p <- 0.50\nse_null <- sqrt(null_p * (1 - null_p) / n)\nz <- (p_hat - null_p) / se_null\np_value <- 2 * (1 - pnorm(abs(z)))\n\np_value", 
-        opts = list(label = "\"p-value-example\"", exercise = "TRUE"), 
+    list(label = "grid-prior", code = "theta_grid <- seq(0, 1, length.out = 101)\n\ncoin_grid <- tibble(\n  theta = theta_grid,\n  prior = 1\n)\n\ncoin_grid", 
+        opts = list(label = "\"grid-prior\"", exercise = "TRUE"), 
         engine = "r")), code_check = NULL, error_check = NULL, 
     check = NULL, solution = NULL, tests = NULL, options = list(
         eval = FALSE, echo = TRUE, results = "markup", tidy = FALSE, 
         tidy.opts = NULL, collapse = FALSE, prompt = FALSE, comment = NA, 
         highlight = FALSE, size = "normalsize", background = "#F7F7F7", 
-        strip.white = TRUE, cache = 0, cache.path = "01-06-lesson_cache/html/", 
+        strip.white = TRUE, cache = 0, cache.path = "01-07-lesson_cache/html/", 
         cache.vars = NULL, cache.lazy = TRUE, dependson = NULL, 
         autodep = FALSE, cache.rebuild = FALSE, fig.keep = "high", 
-        fig.show = "asis", fig.align = "default", fig.path = "01-06-lesson_files/figure-html/", 
+        fig.show = "asis", fig.align = "default", fig.path = "01-07-lesson_files/figure-html/", 
         dev = "png", dev.args = NULL, dpi = 192, fig.ext = "png", 
         fig.width = 6.5, fig.height = 4, fig.env = "figure", 
         fig.cap = NULL, fig.scap = NULL, fig.lp = "fig:", fig.subcap = NULL, 
@@ -1162,11 +1029,108 @@ learnr:::store_exercise_cache(structure(list(label = "p-value-example", global_s
         aniopts = "controls,loop", warning = FALSE, error = FALSE, 
         message = FALSE, render = NULL, ref.label = NULL, child = NULL, 
         engine = "r", split = FALSE, include = TRUE, purl = TRUE, 
-        max.print = 1000, exercise.eval = FALSE, label = "p-value-example", 
-        exercise = TRUE, code = c("null_p <- 0.50", "se_null <- sqrt(null_p * (1 - null_p) / n)", 
-        "z <- (p_hat - null_p) / se_null", "p_value <- 2 * (1 - pnorm(abs(z)))", 
-        "", "p_value"), out.width.px = 624, out.height.px = 384, 
-        params.src = "p-value-example, exercise=TRUE", fig.num = 0, 
+        max.print = 1000, exercise.eval = FALSE, label = "grid-prior", 
+        exercise = TRUE, code = c("theta_grid <- seq(0, 1, length.out = 101)", 
+        "", "coin_grid <- tibble(", "  theta = theta_grid,", 
+        "  prior = 1", ")", "", "coin_grid"), out.width.px = 624, 
+        out.height.px = 384, params.src = "grid-prior, exercise=TRUE", 
+        fig.num = 0, exercise.df_print = "paged", exercise.checker = "NULL"), 
+    engine = "r", version = "4"), class = c("r", "tutorial_exercise"
+)))
+</script>
+
+
+<script type="application/shiny-prerendered" data-context="server">
+`tutorial-exercise-likelihood-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-likelihood-code-editor`)), session)
+output$`tutorial-exercise-likelihood-output` <- renderUI({
+  `tutorial-exercise-likelihood-result`()
+})
+</script>
+ 
+<script type="application/shiny-prerendered" data-context="server">
+learnr:::store_exercise_cache(structure(list(label = "likelihood", global_setup = structure(c("library(learnr)", 
+"library(tidyverse)", "library(shiny)", "", "knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)", 
+"tutorial_options(exercise.eval = FALSE)", "", "my_reveal_time <- \"2026-06-20 15:00:00\"", 
+"", "theta_grid <- seq(0, 1, length.out = 101)", "", "is_server_context <- function(.envir) {", 
+"  inherits(.envir$input, \"reactivevalues\") &", "    inherits(.envir$output, \"shinyoutput\") &", 
+"    inherits(.envir$session, \"ShinySession\")", "}", "", "check_server_context <- function(.envir) {", 
+"  if (!is_server_context(.envir)) {", "    calling_func <- deparse(sys.calls()[[sys.nframe() - 1]])", 
+"    err <- paste0(\"Function `\", calling_func, \"` must be called from an Rmd chunk where `context = \\\"server\\\"`\")", 
+"    stop(err, call. = FALSE)", "  }", "}", "", "encoder_logic <- function(strip_output = FALSE) {", 
+"  p <- parent.frame()", "  check_server_context(p)", "  assign(\"strip_output\", strip_output, envir = p)", 
+"  local(", "    {", "      encoded_txt <- shiny::eventReactive(", 
+"        input$hash_generate,", "        {", "          state <- learnr:::get_tutorial_state()", 
+"          shiny::validate(shiny::need(length(state) > 0, \"No progress yet.\"))", 
+"          shiny::validate(shiny::need(nchar(input$name) > 0, \"No name entered.\"))", 
+"          shiny::validate(shiny::need(nchar(input$studentID) > 0, \"Please enter your student ID\"))", 
+"          user_state <- purrr::map_dfr(state, identity, .id = \"label\")", 
+"          user_state <- dplyr::group_by(user_state, label, type, correct)", 
+"          user_state <- dplyr::summarize(", "            user_state,", 
+"            answer = list(answer),", "            timestamp = dplyr::first(timestamp),", 
+"            .groups = \"drop\"", "          )", "          user_state <- dplyr::relocate(user_state, correct, .before = timestamp)", 
+"          user_info <- tibble(", "            label = c(\"student_name\", \"student_id\"),", 
+"            type = \"identifier\",", "            answer = as.list(c(input$name, input$studentID)),", 
+"            timestamp = format(Sys.time(), \"%Y-%m-%d %H:%M:%S %Z\", tz = \"UTC\")", 
+"          )", "          learnrhash::encode_obj(bind_rows(user_info, user_state))", 
+"        }", "      )", "      output$hash_output <- shiny::renderText(encoded_txt())", 
+"    },", "    envir = p", "  )", "}", "", "hash_encoder_ui <- {", 
+"  shiny::div(", "    \"If you have completed this tutorial and are happy with all of your\",", 
+"    \"solutions, please enter your identifying information, then click the button below to generate your hash\",", 
+"    textInput(\"name\", \"What's your name?\"),", "    textInput(\"studentID\", \"What is your student ID?\"),", 
+"    renderText({", "      input$caption", "    })", "  )", "}", 
+"", "solution_code_card <- function(code, title = \"Solution\") {", 
+"  tags$div(", "    style = paste(", "      \"margin: 1rem 0 1.25rem;\",", 
+"      \"border: 1px solid #d7e3f3;\",", "      \"border-left: 5px solid #2f6f9f;\",", 
+"      \"border-radius: 8px;\",", "      \"background: #f8fbff;\",", 
+"      \"box-shadow: 0 2px 8px rgba(31, 45, 61, 0.08);\",", "      \"overflow: hidden;\"", 
+"    ),", "    tags$div(", "      style = paste(", "        \"display: flex;\",", 
+"        \"align-items: center;\",", "        \"justify-content: space-between;\",", 
+"        \"gap: 0.75rem;\",", "        \"padding: 0.7rem 0.9rem;\",", 
+"        \"background: #eef6ff;\",", "        \"border-bottom: 1px solid #d7e3f3;\"", 
+"      ),", "      tags$strong(title, style = \"color: #1f4e79; font-size: 1rem;\"),", 
+"      tags$span(", "        \"released\",", "        style = paste(", 
+"          \"padding: 0.15rem 0.5rem;\",", "          \"border-radius: 999px;\",", 
+"          \"background: #ffffff;\",", "          \"color: #3c6478;\",", 
+"          \"font-size: 0.78rem;\",", "          \"font-weight: 600;\"", 
+"        )", "      )", "    ),", "    tags$pre(", "      style = paste(", 
+"        \"margin: 0;\",", "        \"padding: 0.9rem 1rem;\",", 
+"        \"background: #ffffff;\",", "        \"border: 0;\",", 
+"        \"white-space: pre-wrap;\",", "        \"text-align: left;\"", 
+"      ),", "      tags$code(", "        htmltools::HTML(htmltools::htmlEscape(code)),", 
+"        style = \"display: block; color: #243447; font-size: 0.95rem; line-height: 1.45;\"", 
+"      )", "    )", "  )", "}", "", "timed_solution <- function(output_id, code, title = \"Solution\",", 
+"                           reveal_time = my_reveal_time,", "                           tz = \"America/New_York\",", 
+"                           check_every_ms = 1000) {", "  p <- parent.frame()", 
+"  check_server_context(p)", "", "  p$output[[output_id]] <- shiny::renderUI({", 
+"    shiny::invalidateLater(check_every_ms, p$session)", "    release_at <- as.POSIXct(reveal_time, tz = tz)", 
+"    if (Sys.time() < release_at) {", "      return(NULL)", "    }", 
+"    solution_code_card(code, title)", "  })", "}"), chunk_opts = list(
+    label = "setup", include = FALSE)), setup = NULL, chunks = list(
+    list(label = "likelihood", code = "heads <- 8\nflips <- 10\n\ncoin_grid <- coin_grid %>%\n  mutate(\n    likelihood = dbinom(heads, size = flips, prob = theta),\n    unscaled_posterior = prior * likelihood,\n    posterior = unscaled_posterior / sum(unscaled_posterior)\n  )\n\ncoin_grid", 
+        opts = list(label = "\"likelihood\"", exercise = "TRUE"), 
+        engine = "r")), code_check = NULL, error_check = NULL, 
+    check = NULL, solution = NULL, tests = NULL, options = list(
+        eval = FALSE, echo = TRUE, results = "markup", tidy = FALSE, 
+        tidy.opts = NULL, collapse = FALSE, prompt = FALSE, comment = NA, 
+        highlight = FALSE, size = "normalsize", background = "#F7F7F7", 
+        strip.white = TRUE, cache = 0, cache.path = "01-07-lesson_cache/html/", 
+        cache.vars = NULL, cache.lazy = TRUE, dependson = NULL, 
+        autodep = FALSE, cache.rebuild = FALSE, fig.keep = "high", 
+        fig.show = "asis", fig.align = "default", fig.path = "01-07-lesson_files/figure-html/", 
+        dev = "png", dev.args = NULL, dpi = 192, fig.ext = "png", 
+        fig.width = 6.5, fig.height = 4, fig.env = "figure", 
+        fig.cap = NULL, fig.scap = NULL, fig.lp = "fig:", fig.subcap = NULL, 
+        fig.pos = "", out.width = 624, out.height = NULL, out.extra = NULL, 
+        fig.retina = 2, external = TRUE, sanitize = FALSE, interval = 1, 
+        aniopts = "controls,loop", warning = FALSE, error = FALSE, 
+        message = FALSE, render = NULL, ref.label = NULL, child = NULL, 
+        engine = "r", split = FALSE, include = TRUE, purl = TRUE, 
+        max.print = 1000, exercise.eval = FALSE, label = "likelihood", 
+        exercise = TRUE, code = c("heads <- 8", "flips <- 10", 
+        "", "coin_grid <- coin_grid %>%", "  mutate(", "    likelihood = dbinom(heads, size = flips, prob = theta),", 
+        "    unscaled_posterior = prior * likelihood,", "    posterior = unscaled_posterior / sum(unscaled_posterior)", 
+        "  )", "", "coin_grid"), out.width.px = 624, out.height.px = 384, 
+        params.src = "likelihood, exercise=TRUE", fig.num = 0, 
         exercise.df_print = "paged", exercise.checker = "NULL"), 
     engine = "r", version = "4"), class = c("r", "tutorial_exercise"
 )))
@@ -1174,20 +1138,17 @@ learnr:::store_exercise_cache(structure(list(label = "p-value-example", global_s
 
 
 <script type="application/shiny-prerendered" data-context="server">
-`tutorial-exercise-ex-new-null-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-ex-new-null-code-editor`)), session)
-output$`tutorial-exercise-ex-new-null-output` <- renderUI({
-  `tutorial-exercise-ex-new-null-result`()
+`tutorial-exercise-posterior-plot-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-posterior-plot-code-editor`)), session)
+output$`tutorial-exercise-posterior-plot-output` <- renderUI({
+  `tutorial-exercise-posterior-plot-result`()
 })
 </script>
  
 <script type="application/shiny-prerendered" data-context="server">
-learnr:::store_exercise_cache(structure(list(label = "ex-new-null", global_setup = structure(c("library(learnr)", 
+learnr:::store_exercise_cache(structure(list(label = "posterior-plot", global_setup = structure(c("library(learnr)", 
 "library(tidyverse)", "library(shiny)", "", "knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)", 
 "tutorial_options(exercise.eval = FALSE)", "", "my_reveal_time <- \"2026-06-20 15:00:00\"", 
-"", "population <- tibble(", "  person = 1:10000,", "  supports_policy = rbinom(10000, size = 1, prob = 0.58)", 
-")", "", "prop_ci <- function(p_hat, n) {", "  se <- sqrt(p_hat * (1 - p_hat) / n)", 
-"  lower <- p_hat - 1.96 * se", "  upper <- p_hat + 1.96 * se", 
-"  c(lower, upper)", "}", "", "is_server_context <- function(.envir) {", 
+"", "theta_grid <- seq(0, 1, length.out = 101)", "", "is_server_context <- function(.envir) {", 
 "  inherits(.envir$input, \"reactivevalues\") &", "    inherits(.envir$output, \"shinyoutput\") &", 
 "    inherits(.envir$session, \"ShinySession\")", "}", "", "check_server_context <- function(.envir) {", 
 "  if (!is_server_context(.envir)) {", "    calling_func <- deparse(sys.calls()[[sys.nframe() - 1]])", 
@@ -1242,17 +1203,17 @@ learnr:::store_exercise_cache(structure(list(label = "ex-new-null", global_setup
 "    if (Sys.time() < release_at) {", "      return(NULL)", "    }", 
 "    solution_code_card(code, title)", "  })", "}"), chunk_opts = list(
     label = "setup", include = FALSE)), setup = NULL, chunks = list(
-    list(label = "ex-new-null", code = "null_p <- 0.60", opts = list(
-        label = "\"ex-new-null\"", exercise = "TRUE"), engine = "r")), 
-    code_check = NULL, error_check = NULL, check = NULL, solution = NULL, 
-    tests = NULL, options = list(eval = FALSE, echo = TRUE, results = "markup", 
-        tidy = FALSE, tidy.opts = NULL, collapse = FALSE, prompt = FALSE, 
-        comment = NA, highlight = FALSE, size = "normalsize", 
-        background = "#F7F7F7", strip.white = TRUE, cache = 0, 
-        cache.path = "01-06-lesson_cache/html/", cache.vars = NULL, 
-        cache.lazy = TRUE, dependson = NULL, autodep = FALSE, 
-        cache.rebuild = FALSE, fig.keep = "high", fig.show = "asis", 
-        fig.align = "default", fig.path = "01-06-lesson_files/figure-html/", 
+    list(label = "posterior-plot", code = "ggplot(coin_grid, aes(x = theta, y = posterior)) +\n  geom_col(width = 0.01) +\n  labs(x = \"Possible value of theta\", y = \"Posterior probability\")", 
+        opts = list(label = "\"posterior-plot\"", exercise = "TRUE"), 
+        engine = "r")), code_check = NULL, error_check = NULL, 
+    check = NULL, solution = NULL, tests = NULL, options = list(
+        eval = FALSE, echo = TRUE, results = "markup", tidy = FALSE, 
+        tidy.opts = NULL, collapse = FALSE, prompt = FALSE, comment = NA, 
+        highlight = FALSE, size = "normalsize", background = "#F7F7F7", 
+        strip.white = TRUE, cache = 0, cache.path = "01-07-lesson_cache/html/", 
+        cache.vars = NULL, cache.lazy = TRUE, dependson = NULL, 
+        autodep = FALSE, cache.rebuild = FALSE, fig.keep = "high", 
+        fig.show = "asis", fig.align = "default", fig.path = "01-07-lesson_files/figure-html/", 
         dev = "png", dev.args = NULL, dpi = 192, fig.ext = "png", 
         fig.width = 6.5, fig.height = 4, fig.env = "figure", 
         fig.cap = NULL, fig.scap = NULL, fig.lp = "fig:", fig.subcap = NULL, 
@@ -1261,9 +1222,199 @@ learnr:::store_exercise_cache(structure(list(label = "ex-new-null", global_setup
         aniopts = "controls,loop", warning = FALSE, error = FALSE, 
         message = FALSE, render = NULL, ref.label = NULL, child = NULL, 
         engine = "r", split = FALSE, include = TRUE, purl = TRUE, 
-        max.print = 1000, exercise.eval = FALSE, label = "ex-new-null", 
-        exercise = TRUE, code = "null_p <- 0.60", out.width.px = 624, 
-        out.height.px = 384, params.src = "ex-new-null, exercise=TRUE", 
+        max.print = 1000, exercise.eval = FALSE, label = "posterior-plot", 
+        exercise = TRUE, code = c("ggplot(coin_grid, aes(x = theta, y = posterior)) +", 
+        "  geom_col(width = 0.01) +", "  labs(x = \"Possible value of theta\", y = \"Posterior probability\")"
+        ), out.width.px = 624, out.height.px = 384, params.src = "posterior-plot, exercise=TRUE", 
+        fig.num = 0, exercise.df_print = "paged", exercise.checker = "NULL"), 
+    engine = "r", version = "4"), class = c("r", "tutorial_exercise"
+)))
+</script>
+
+
+<script type="application/shiny-prerendered" data-context="server">
+`tutorial-exercise-posterior-summary-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-posterior-summary-code-editor`)), session)
+output$`tutorial-exercise-posterior-summary-output` <- renderUI({
+  `tutorial-exercise-posterior-summary-result`()
+})
+</script>
+ 
+<script type="application/shiny-prerendered" data-context="server">
+learnr:::store_exercise_cache(structure(list(label = "posterior-summary", global_setup = structure(c("library(learnr)", 
+"library(tidyverse)", "library(shiny)", "", "knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)", 
+"tutorial_options(exercise.eval = FALSE)", "", "my_reveal_time <- \"2026-06-20 15:00:00\"", 
+"", "theta_grid <- seq(0, 1, length.out = 101)", "", "is_server_context <- function(.envir) {", 
+"  inherits(.envir$input, \"reactivevalues\") &", "    inherits(.envir$output, \"shinyoutput\") &", 
+"    inherits(.envir$session, \"ShinySession\")", "}", "", "check_server_context <- function(.envir) {", 
+"  if (!is_server_context(.envir)) {", "    calling_func <- deparse(sys.calls()[[sys.nframe() - 1]])", 
+"    err <- paste0(\"Function `\", calling_func, \"` must be called from an Rmd chunk where `context = \\\"server\\\"`\")", 
+"    stop(err, call. = FALSE)", "  }", "}", "", "encoder_logic <- function(strip_output = FALSE) {", 
+"  p <- parent.frame()", "  check_server_context(p)", "  assign(\"strip_output\", strip_output, envir = p)", 
+"  local(", "    {", "      encoded_txt <- shiny::eventReactive(", 
+"        input$hash_generate,", "        {", "          state <- learnr:::get_tutorial_state()", 
+"          shiny::validate(shiny::need(length(state) > 0, \"No progress yet.\"))", 
+"          shiny::validate(shiny::need(nchar(input$name) > 0, \"No name entered.\"))", 
+"          shiny::validate(shiny::need(nchar(input$studentID) > 0, \"Please enter your student ID\"))", 
+"          user_state <- purrr::map_dfr(state, identity, .id = \"label\")", 
+"          user_state <- dplyr::group_by(user_state, label, type, correct)", 
+"          user_state <- dplyr::summarize(", "            user_state,", 
+"            answer = list(answer),", "            timestamp = dplyr::first(timestamp),", 
+"            .groups = \"drop\"", "          )", "          user_state <- dplyr::relocate(user_state, correct, .before = timestamp)", 
+"          user_info <- tibble(", "            label = c(\"student_name\", \"student_id\"),", 
+"            type = \"identifier\",", "            answer = as.list(c(input$name, input$studentID)),", 
+"            timestamp = format(Sys.time(), \"%Y-%m-%d %H:%M:%S %Z\", tz = \"UTC\")", 
+"          )", "          learnrhash::encode_obj(bind_rows(user_info, user_state))", 
+"        }", "      )", "      output$hash_output <- shiny::renderText(encoded_txt())", 
+"    },", "    envir = p", "  )", "}", "", "hash_encoder_ui <- {", 
+"  shiny::div(", "    \"If you have completed this tutorial and are happy with all of your\",", 
+"    \"solutions, please enter your identifying information, then click the button below to generate your hash\",", 
+"    textInput(\"name\", \"What's your name?\"),", "    textInput(\"studentID\", \"What is your student ID?\"),", 
+"    renderText({", "      input$caption", "    })", "  )", "}", 
+"", "solution_code_card <- function(code, title = \"Solution\") {", 
+"  tags$div(", "    style = paste(", "      \"margin: 1rem 0 1.25rem;\",", 
+"      \"border: 1px solid #d7e3f3;\",", "      \"border-left: 5px solid #2f6f9f;\",", 
+"      \"border-radius: 8px;\",", "      \"background: #f8fbff;\",", 
+"      \"box-shadow: 0 2px 8px rgba(31, 45, 61, 0.08);\",", "      \"overflow: hidden;\"", 
+"    ),", "    tags$div(", "      style = paste(", "        \"display: flex;\",", 
+"        \"align-items: center;\",", "        \"justify-content: space-between;\",", 
+"        \"gap: 0.75rem;\",", "        \"padding: 0.7rem 0.9rem;\",", 
+"        \"background: #eef6ff;\",", "        \"border-bottom: 1px solid #d7e3f3;\"", 
+"      ),", "      tags$strong(title, style = \"color: #1f4e79; font-size: 1rem;\"),", 
+"      tags$span(", "        \"released\",", "        style = paste(", 
+"          \"padding: 0.15rem 0.5rem;\",", "          \"border-radius: 999px;\",", 
+"          \"background: #ffffff;\",", "          \"color: #3c6478;\",", 
+"          \"font-size: 0.78rem;\",", "          \"font-weight: 600;\"", 
+"        )", "      )", "    ),", "    tags$pre(", "      style = paste(", 
+"        \"margin: 0;\",", "        \"padding: 0.9rem 1rem;\",", 
+"        \"background: #ffffff;\",", "        \"border: 0;\",", 
+"        \"white-space: pre-wrap;\",", "        \"text-align: left;\"", 
+"      ),", "      tags$code(", "        htmltools::HTML(htmltools::htmlEscape(code)),", 
+"        style = \"display: block; color: #243447; font-size: 0.95rem; line-height: 1.45;\"", 
+"      )", "    )", "  )", "}", "", "timed_solution <- function(output_id, code, title = \"Solution\",", 
+"                           reveal_time = my_reveal_time,", "                           tz = \"America/New_York\",", 
+"                           check_every_ms = 1000) {", "  p <- parent.frame()", 
+"  check_server_context(p)", "", "  p$output[[output_id]] <- shiny::renderUI({", 
+"    shiny::invalidateLater(check_every_ms, p$session)", "    release_at <- as.POSIXct(reveal_time, tz = tz)", 
+"    if (Sys.time() < release_at) {", "      return(NULL)", "    }", 
+"    solution_code_card(code, title)", "  })", "}"), chunk_opts = list(
+    label = "setup", include = FALSE)), setup = NULL, chunks = list(
+    list(label = "posterior-summary", code = "coin_grid %>%\n  summarise(\n    posterior_mean = sum(theta * posterior),\n    posterior_probability_theta_above_half = sum(posterior[theta > 0.5])\n  )", 
+        opts = list(label = "\"posterior-summary\"", exercise = "TRUE"), 
+        engine = "r")), code_check = NULL, error_check = NULL, 
+    check = NULL, solution = NULL, tests = NULL, options = list(
+        eval = FALSE, echo = TRUE, results = "markup", tidy = FALSE, 
+        tidy.opts = NULL, collapse = FALSE, prompt = FALSE, comment = NA, 
+        highlight = FALSE, size = "normalsize", background = "#F7F7F7", 
+        strip.white = TRUE, cache = 0, cache.path = "01-07-lesson_cache/html/", 
+        cache.vars = NULL, cache.lazy = TRUE, dependson = NULL, 
+        autodep = FALSE, cache.rebuild = FALSE, fig.keep = "high", 
+        fig.show = "asis", fig.align = "default", fig.path = "01-07-lesson_files/figure-html/", 
+        dev = "png", dev.args = NULL, dpi = 192, fig.ext = "png", 
+        fig.width = 6.5, fig.height = 4, fig.env = "figure", 
+        fig.cap = NULL, fig.scap = NULL, fig.lp = "fig:", fig.subcap = NULL, 
+        fig.pos = "", out.width = 624, out.height = NULL, out.extra = NULL, 
+        fig.retina = 2, external = TRUE, sanitize = FALSE, interval = 1, 
+        aniopts = "controls,loop", warning = FALSE, error = FALSE, 
+        message = FALSE, render = NULL, ref.label = NULL, child = NULL, 
+        engine = "r", split = FALSE, include = TRUE, purl = TRUE, 
+        max.print = 1000, exercise.eval = FALSE, label = "posterior-summary", 
+        exercise = TRUE, code = c("coin_grid %>%", "  summarise(", 
+        "    posterior_mean = sum(theta * posterior),", "    posterior_probability_theta_above_half = sum(posterior[theta > 0.5])", 
+        "  )"), out.width.px = 624, out.height.px = 384, params.src = "posterior-summary, exercise=TRUE", 
+        fig.num = 0, exercise.df_print = "paged", exercise.checker = "NULL"), 
+    engine = "r", version = "4"), class = c("r", "tutorial_exercise"
+)))
+</script>
+
+
+<script type="application/shiny-prerendered" data-context="server">
+`tutorial-exercise-ex-more-data-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-ex-more-data-code-editor`)), session)
+output$`tutorial-exercise-ex-more-data-output` <- renderUI({
+  `tutorial-exercise-ex-more-data-result`()
+})
+</script>
+ 
+<script type="application/shiny-prerendered" data-context="server">
+learnr:::store_exercise_cache(structure(list(label = "ex-more-data", global_setup = structure(c("library(learnr)", 
+"library(tidyverse)", "library(shiny)", "", "knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)", 
+"tutorial_options(exercise.eval = FALSE)", "", "my_reveal_time <- \"2026-06-20 15:00:00\"", 
+"", "theta_grid <- seq(0, 1, length.out = 101)", "", "is_server_context <- function(.envir) {", 
+"  inherits(.envir$input, \"reactivevalues\") &", "    inherits(.envir$output, \"shinyoutput\") &", 
+"    inherits(.envir$session, \"ShinySession\")", "}", "", "check_server_context <- function(.envir) {", 
+"  if (!is_server_context(.envir)) {", "    calling_func <- deparse(sys.calls()[[sys.nframe() - 1]])", 
+"    err <- paste0(\"Function `\", calling_func, \"` must be called from an Rmd chunk where `context = \\\"server\\\"`\")", 
+"    stop(err, call. = FALSE)", "  }", "}", "", "encoder_logic <- function(strip_output = FALSE) {", 
+"  p <- parent.frame()", "  check_server_context(p)", "  assign(\"strip_output\", strip_output, envir = p)", 
+"  local(", "    {", "      encoded_txt <- shiny::eventReactive(", 
+"        input$hash_generate,", "        {", "          state <- learnr:::get_tutorial_state()", 
+"          shiny::validate(shiny::need(length(state) > 0, \"No progress yet.\"))", 
+"          shiny::validate(shiny::need(nchar(input$name) > 0, \"No name entered.\"))", 
+"          shiny::validate(shiny::need(nchar(input$studentID) > 0, \"Please enter your student ID\"))", 
+"          user_state <- purrr::map_dfr(state, identity, .id = \"label\")", 
+"          user_state <- dplyr::group_by(user_state, label, type, correct)", 
+"          user_state <- dplyr::summarize(", "            user_state,", 
+"            answer = list(answer),", "            timestamp = dplyr::first(timestamp),", 
+"            .groups = \"drop\"", "          )", "          user_state <- dplyr::relocate(user_state, correct, .before = timestamp)", 
+"          user_info <- tibble(", "            label = c(\"student_name\", \"student_id\"),", 
+"            type = \"identifier\",", "            answer = as.list(c(input$name, input$studentID)),", 
+"            timestamp = format(Sys.time(), \"%Y-%m-%d %H:%M:%S %Z\", tz = \"UTC\")", 
+"          )", "          learnrhash::encode_obj(bind_rows(user_info, user_state))", 
+"        }", "      )", "      output$hash_output <- shiny::renderText(encoded_txt())", 
+"    },", "    envir = p", "  )", "}", "", "hash_encoder_ui <- {", 
+"  shiny::div(", "    \"If you have completed this tutorial and are happy with all of your\",", 
+"    \"solutions, please enter your identifying information, then click the button below to generate your hash\",", 
+"    textInput(\"name\", \"What's your name?\"),", "    textInput(\"studentID\", \"What is your student ID?\"),", 
+"    renderText({", "      input$caption", "    })", "  )", "}", 
+"", "solution_code_card <- function(code, title = \"Solution\") {", 
+"  tags$div(", "    style = paste(", "      \"margin: 1rem 0 1.25rem;\",", 
+"      \"border: 1px solid #d7e3f3;\",", "      \"border-left: 5px solid #2f6f9f;\",", 
+"      \"border-radius: 8px;\",", "      \"background: #f8fbff;\",", 
+"      \"box-shadow: 0 2px 8px rgba(31, 45, 61, 0.08);\",", "      \"overflow: hidden;\"", 
+"    ),", "    tags$div(", "      style = paste(", "        \"display: flex;\",", 
+"        \"align-items: center;\",", "        \"justify-content: space-between;\",", 
+"        \"gap: 0.75rem;\",", "        \"padding: 0.7rem 0.9rem;\",", 
+"        \"background: #eef6ff;\",", "        \"border-bottom: 1px solid #d7e3f3;\"", 
+"      ),", "      tags$strong(title, style = \"color: #1f4e79; font-size: 1rem;\"),", 
+"      tags$span(", "        \"released\",", "        style = paste(", 
+"          \"padding: 0.15rem 0.5rem;\",", "          \"border-radius: 999px;\",", 
+"          \"background: #ffffff;\",", "          \"color: #3c6478;\",", 
+"          \"font-size: 0.78rem;\",", "          \"font-weight: 600;\"", 
+"        )", "      )", "    ),", "    tags$pre(", "      style = paste(", 
+"        \"margin: 0;\",", "        \"padding: 0.9rem 1rem;\",", 
+"        \"background: #ffffff;\",", "        \"border: 0;\",", 
+"        \"white-space: pre-wrap;\",", "        \"text-align: left;\"", 
+"      ),", "      tags$code(", "        htmltools::HTML(htmltools::htmlEscape(code)),", 
+"        style = \"display: block; color: #243447; font-size: 0.95rem; line-height: 1.45;\"", 
+"      )", "    )", "  )", "}", "", "timed_solution <- function(output_id, code, title = \"Solution\",", 
+"                           reveal_time = my_reveal_time,", "                           tz = \"America/New_York\",", 
+"                           check_every_ms = 1000) {", "  p <- parent.frame()", 
+"  check_server_context(p)", "", "  p$output[[output_id]] <- shiny::renderUI({", 
+"    shiny::invalidateLater(check_every_ms, p$session)", "    release_at <- as.POSIXct(reveal_time, tz = tz)", 
+"    if (Sys.time() < release_at) {", "      return(NULL)", "    }", 
+"    solution_code_card(code, title)", "  })", "}"), chunk_opts = list(
+    label = "setup", include = FALSE)), setup = NULL, chunks = list(
+    list(label = "ex-more-data", code = "heads <- 14\nflips <- 20", 
+        opts = list(label = "\"ex-more-data\"", exercise = "TRUE"), 
+        engine = "r")), code_check = NULL, error_check = NULL, 
+    check = NULL, solution = NULL, tests = NULL, options = list(
+        eval = FALSE, echo = TRUE, results = "markup", tidy = FALSE, 
+        tidy.opts = NULL, collapse = FALSE, prompt = FALSE, comment = NA, 
+        highlight = FALSE, size = "normalsize", background = "#F7F7F7", 
+        strip.white = TRUE, cache = 0, cache.path = "01-07-lesson_cache/html/", 
+        cache.vars = NULL, cache.lazy = TRUE, dependson = NULL, 
+        autodep = FALSE, cache.rebuild = FALSE, fig.keep = "high", 
+        fig.show = "asis", fig.align = "default", fig.path = "01-07-lesson_files/figure-html/", 
+        dev = "png", dev.args = NULL, dpi = 192, fig.ext = "png", 
+        fig.width = 6.5, fig.height = 4, fig.env = "figure", 
+        fig.cap = NULL, fig.scap = NULL, fig.lp = "fig:", fig.subcap = NULL, 
+        fig.pos = "", out.width = 624, out.height = NULL, out.extra = NULL, 
+        fig.retina = 2, external = TRUE, sanitize = FALSE, interval = 1, 
+        aniopts = "controls,loop", warning = FALSE, error = FALSE, 
+        message = FALSE, render = NULL, ref.label = NULL, child = NULL, 
+        engine = "r", split = FALSE, include = TRUE, purl = TRUE, 
+        max.print = 1000, exercise.eval = FALSE, label = "ex-more-data", 
+        exercise = TRUE, code = c("heads <- 14", "flips <- 20"
+        ), out.width.px = 624, out.height.px = 384, params.src = "ex-more-data, exercise=TRUE", 
         fig.num = 0, exercise.df_print = "paged", exercise.checker = "NULL"), 
     engine = "r", version = "4"), class = c("r", "tutorial_exercise"
 )))
@@ -1272,27 +1423,24 @@ learnr:::store_exercise_cache(structure(list(label = "ex-new-null", global_setup
 
 <script type="application/shiny-prerendered" data-context="server">
 timed_solution(
-  "ex_new_null_solution_code",
-  "null_p <- 0.60\nse_null <- sqrt(null_p * (1 - null_p) / n)\nz <- (p_hat - null_p) / se_null\np_value <- 2 * (1 - pnorm(abs(z)))\n\np_value"
+  "ex_more_data_solution_code",
+  "heads <- 14\nflips <- 20\n\ncoin_grid <- tibble(theta = theta_grid, prior = 1) %>%\n  mutate(\n    likelihood = dbinom(heads, size = flips, prob = theta),\n    unscaled_posterior = prior * likelihood,\n    posterior = unscaled_posterior / sum(unscaled_posterior)\n  )\n\ncoin_grid %>%\n  summarise(posterior_mean = sum(theta * posterior))"
 )
 </script>
  
 <script type="application/shiny-prerendered" data-context="server">
-`tutorial-exercise-simulate-coverage-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-simulate-coverage-code-editor`)), session)
-output$`tutorial-exercise-simulate-coverage-output` <- renderUI({
-  `tutorial-exercise-simulate-coverage-result`()
+`tutorial-exercise-compare-priors-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-compare-priors-code-editor`)), session)
+output$`tutorial-exercise-compare-priors-output` <- renderUI({
+  `tutorial-exercise-compare-priors-result`()
 })
 </script>
 
 
 <script type="application/shiny-prerendered" data-context="server">
-learnr:::store_exercise_cache(structure(list(label = "simulate-coverage", global_setup = structure(c("library(learnr)", 
+learnr:::store_exercise_cache(structure(list(label = "compare-priors", global_setup = structure(c("library(learnr)", 
 "library(tidyverse)", "library(shiny)", "", "knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)", 
 "tutorial_options(exercise.eval = FALSE)", "", "my_reveal_time <- \"2026-06-20 15:00:00\"", 
-"", "population <- tibble(", "  person = 1:10000,", "  supports_policy = rbinom(10000, size = 1, prob = 0.58)", 
-")", "", "prop_ci <- function(p_hat, n) {", "  se <- sqrt(p_hat * (1 - p_hat) / n)", 
-"  lower <- p_hat - 1.96 * se", "  upper <- p_hat + 1.96 * se", 
-"  c(lower, upper)", "}", "", "is_server_context <- function(.envir) {", 
+"", "theta_grid <- seq(0, 1, length.out = 101)", "", "is_server_context <- function(.envir) {", 
 "  inherits(.envir$input, \"reactivevalues\") &", "    inherits(.envir$output, \"shinyoutput\") &", 
 "    inherits(.envir$session, \"ShinySession\")", "}", "", "check_server_context <- function(.envir) {", 
 "  if (!is_server_context(.envir)) {", "    calling_func <- deparse(sys.calls()[[sys.nframe() - 1]])", 
@@ -1347,17 +1495,17 @@ learnr:::store_exercise_cache(structure(list(label = "simulate-coverage", global
 "    if (Sys.time() < release_at) {", "      return(NULL)", "    }", 
 "    solution_code_card(code, title)", "  })", "}"), chunk_opts = list(
     label = "setup", include = FALSE)), setup = NULL, chunks = list(
-    list(label = "simulate-coverage", code = "set.seed(213)\n\ncapture_results <- replicate(\n  n = 1000,\n  expr = {\n    sample_data <- population %>%\n      slice_sample(n = 80)\n    phat <- mean(sample_data$supports_policy)\n    ci <- prop_ci(phat, n = 80)\n    ci[1] <= 0.58 & 0.58 <= ci[2]\n  }\n)\n\nmean(capture_results)", 
-        opts = list(label = "\"simulate-coverage\"", exercise = "TRUE"), 
+    list(label = "compare-priors", code = "prior_comparison <- tibble(\n  theta = rep(theta_grid, times = 2),\n  prior_type = rep(c(\"uniform\", \"skeptical\"), each = length(theta_grid)),\n  prior = c(\n    rep(1, length(theta_grid)),\n    dbeta(theta_grid, shape1 = 20, shape2 = 20)\n  )\n) %>%\n  group_by(prior_type) %>%\n  mutate(\n    likelihood = dbinom(8, size = 10, prob = theta),\n    posterior = prior * likelihood / sum(prior * likelihood)\n  ) %>%\n  ungroup()\n\nggplot(prior_comparison, aes(x = theta, y = posterior, color = prior_type)) +\n  geom_line() +\n  labs(x = \"Possible value of theta\", y = \"Posterior probability\")", 
+        opts = list(label = "\"compare-priors\"", exercise = "TRUE"), 
         engine = "r")), code_check = NULL, error_check = NULL, 
     check = NULL, solution = NULL, tests = NULL, options = list(
         eval = FALSE, echo = TRUE, results = "markup", tidy = FALSE, 
         tidy.opts = NULL, collapse = FALSE, prompt = FALSE, comment = NA, 
         highlight = FALSE, size = "normalsize", background = "#F7F7F7", 
-        strip.white = TRUE, cache = 0, cache.path = "01-06-lesson_cache/html/", 
+        strip.white = TRUE, cache = 0, cache.path = "01-07-lesson_cache/html/", 
         cache.vars = NULL, cache.lazy = TRUE, dependson = NULL, 
         autodep = FALSE, cache.rebuild = FALSE, fig.keep = "high", 
-        fig.show = "asis", fig.align = "default", fig.path = "01-06-lesson_files/figure-html/", 
+        fig.show = "asis", fig.align = "default", fig.path = "01-07-lesson_files/figure-html/", 
         dev = "png", dev.args = NULL, dpi = 192, fig.ext = "png", 
         fig.width = 6.5, fig.height = 4, fig.env = "figure", 
         fig.cap = NULL, fig.scap = NULL, fig.lp = "fig:", fig.subcap = NULL, 
@@ -1366,34 +1514,34 @@ learnr:::store_exercise_cache(structure(list(label = "simulate-coverage", global
         aniopts = "controls,loop", warning = FALSE, error = FALSE, 
         message = FALSE, render = NULL, ref.label = NULL, child = NULL, 
         engine = "r", split = FALSE, include = TRUE, purl = TRUE, 
-        max.print = 1000, exercise.eval = FALSE, label = "simulate-coverage", 
-        exercise = TRUE, code = c("set.seed(213)", "", "capture_results <- replicate(", 
-        "  n = 1000,", "  expr = {", "    sample_data <- population %>%", 
-        "      slice_sample(n = 80)", "    phat <- mean(sample_data$supports_policy)", 
-        "    ci <- prop_ci(phat, n = 80)", "    ci[1] <= 0.58 & 0.58 <= ci[2]", 
-        "  }", ")", "", "mean(capture_results)"), out.width.px = 624, 
-        out.height.px = 384, params.src = "simulate-coverage, exercise=TRUE", 
+        max.print = 1000, exercise.eval = FALSE, label = "compare-priors", 
+        exercise = TRUE, code = c("prior_comparison <- tibble(", 
+        "  theta = rep(theta_grid, times = 2),", "  prior_type = rep(c(\"uniform\", \"skeptical\"), each = length(theta_grid)),", 
+        "  prior = c(", "    rep(1, length(theta_grid)),", "    dbeta(theta_grid, shape1 = 20, shape2 = 20)", 
+        "  )", ") %>%", "  group_by(prior_type) %>%", "  mutate(", 
+        "    likelihood = dbinom(8, size = 10, prob = theta),", 
+        "    posterior = prior * likelihood / sum(prior * likelihood)", 
+        "  ) %>%", "  ungroup()", "", "ggplot(prior_comparison, aes(x = theta, y = posterior, color = prior_type)) +", 
+        "  geom_line() +", "  labs(x = \"Possible value of theta\", y = \"Posterior probability\")"
+        ), out.width.px = 624, out.height.px = 384, params.src = "compare-priors, exercise=TRUE", 
         fig.num = 0, exercise.df_print = "paged", exercise.checker = "NULL"), 
     engine = "r", version = "4"), class = c("r", "tutorial_exercise"
 )))
 </script>
  
 <script type="application/shiny-prerendered" data-context="server">
-`tutorial-exercise-two-way-table-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-two-way-table-code-editor`)), session)
-output$`tutorial-exercise-two-way-table-output` <- renderUI({
-  `tutorial-exercise-two-way-table-result`()
+`tutorial-exercise-ex-prior-interpretation-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-ex-prior-interpretation-code-editor`)), session)
+output$`tutorial-exercise-ex-prior-interpretation-output` <- renderUI({
+  `tutorial-exercise-ex-prior-interpretation-result`()
 })
 </script>
 
 
 <script type="application/shiny-prerendered" data-context="server">
-learnr:::store_exercise_cache(structure(list(label = "two-way-table", global_setup = structure(c("library(learnr)", 
+learnr:::store_exercise_cache(structure(list(label = "ex-prior-interpretation", global_setup = structure(c("library(learnr)", 
 "library(tidyverse)", "library(shiny)", "", "knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)", 
 "tutorial_options(exercise.eval = FALSE)", "", "my_reveal_time <- \"2026-06-20 15:00:00\"", 
-"", "population <- tibble(", "  person = 1:10000,", "  supports_policy = rbinom(10000, size = 1, prob = 0.58)", 
-")", "", "prop_ci <- function(p_hat, n) {", "  se <- sqrt(p_hat * (1 - p_hat) / n)", 
-"  lower <- p_hat - 1.96 * se", "  upper <- p_hat + 1.96 * se", 
-"  c(lower, upper)", "}", "", "is_server_context <- function(.envir) {", 
+"", "theta_grid <- seq(0, 1, length.out = 101)", "", "is_server_context <- function(.envir) {", 
 "  inherits(.envir$input, \"reactivevalues\") &", "    inherits(.envir$output, \"shinyoutput\") &", 
 "    inherits(.envir$session, \"ShinySession\")", "}", "", "check_server_context <- function(.envir) {", 
 "  if (!is_server_context(.envir)) {", "    calling_func <- deparse(sys.calls()[[sys.nframe() - 1]])", 
@@ -1448,17 +1596,17 @@ learnr:::store_exercise_cache(structure(list(label = "two-way-table", global_set
 "    if (Sys.time() < release_at) {", "      return(NULL)", "    }", 
 "    solution_code_card(code, title)", "  })", "}"), chunk_opts = list(
     label = "setup", include = FALSE)), setup = NULL, chunks = list(
-    list(label = "two-way-table", code = "titanic_counts <- as.data.frame(Titanic) %>%\n  filter(Age == \"Adult\") %>%\n  group_by(Class, Survived) %>%\n  summarise(count = sum(Freq), .groups = \"drop\")\n\ntitanic_counts", 
-        opts = list(label = "\"two-way-table\"", exercise = "TRUE"), 
+    list(label = "ex-prior-interpretation", code = "", opts = list(
+        label = "\"ex-prior-interpretation\"", exercise = "TRUE"), 
         engine = "r")), code_check = NULL, error_check = NULL, 
     check = NULL, solution = NULL, tests = NULL, options = list(
         eval = FALSE, echo = TRUE, results = "markup", tidy = FALSE, 
         tidy.opts = NULL, collapse = FALSE, prompt = FALSE, comment = NA, 
         highlight = FALSE, size = "normalsize", background = "#F7F7F7", 
-        strip.white = TRUE, cache = 0, cache.path = "01-06-lesson_cache/html/", 
+        strip.white = TRUE, cache = 0, cache.path = "01-07-lesson_cache/html/", 
         cache.vars = NULL, cache.lazy = TRUE, dependson = NULL, 
         autodep = FALSE, cache.rebuild = FALSE, fig.keep = "high", 
-        fig.show = "asis", fig.align = "default", fig.path = "01-06-lesson_files/figure-html/", 
+        fig.show = "asis", fig.align = "default", fig.path = "01-07-lesson_files/figure-html/", 
         dev = "png", dev.args = NULL, dpi = 192, fig.ext = "png", 
         fig.width = 6.5, fig.height = 4, fig.env = "figure", 
         fig.cap = NULL, fig.scap = NULL, fig.lp = "fig:", fig.subcap = NULL, 
@@ -1467,228 +1615,27 @@ learnr:::store_exercise_cache(structure(list(label = "two-way-table", global_set
         aniopts = "controls,loop", warning = FALSE, error = FALSE, 
         message = FALSE, render = NULL, ref.label = NULL, child = NULL, 
         engine = "r", split = FALSE, include = TRUE, purl = TRUE, 
-        max.print = 1000, exercise.eval = FALSE, label = "two-way-table", 
-        exercise = TRUE, code = c("titanic_counts <- as.data.frame(Titanic) %>%", 
-        "  filter(Age == \"Adult\") %>%", "  group_by(Class, Survived) %>%", 
-        "  summarise(count = sum(Freq), .groups = \"drop\")", 
-        "", "titanic_counts"), out.width.px = 624, out.height.px = 384, 
-        params.src = "two-way-table, exercise=TRUE", fig.num = 0, 
-        exercise.df_print = "paged", exercise.checker = "NULL"), 
-    engine = "r", version = "4"), class = c("r", "tutorial_exercise"
-)))
-</script>
- 
-<script type="application/shiny-prerendered" data-context="server">
-`tutorial-exercise-chi-square-table-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-chi-square-table-code-editor`)), session)
-output$`tutorial-exercise-chi-square-table-output` <- renderUI({
-  `tutorial-exercise-chi-square-table-result`()
-})
-</script>
-
-
-<script type="application/shiny-prerendered" data-context="server">
-learnr:::store_exercise_cache(structure(list(label = "chi-square-table", global_setup = structure(c("library(learnr)", 
-"library(tidyverse)", "library(shiny)", "", "knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)", 
-"tutorial_options(exercise.eval = FALSE)", "", "my_reveal_time <- \"2026-06-20 15:00:00\"", 
-"", "population <- tibble(", "  person = 1:10000,", "  supports_policy = rbinom(10000, size = 1, prob = 0.58)", 
-")", "", "prop_ci <- function(p_hat, n) {", "  se <- sqrt(p_hat * (1 - p_hat) / n)", 
-"  lower <- p_hat - 1.96 * se", "  upper <- p_hat + 1.96 * se", 
-"  c(lower, upper)", "}", "", "is_server_context <- function(.envir) {", 
-"  inherits(.envir$input, \"reactivevalues\") &", "    inherits(.envir$output, \"shinyoutput\") &", 
-"    inherits(.envir$session, \"ShinySession\")", "}", "", "check_server_context <- function(.envir) {", 
-"  if (!is_server_context(.envir)) {", "    calling_func <- deparse(sys.calls()[[sys.nframe() - 1]])", 
-"    err <- paste0(\"Function `\", calling_func, \"` must be called from an Rmd chunk where `context = \\\"server\\\"`\")", 
-"    stop(err, call. = FALSE)", "  }", "}", "", "encoder_logic <- function(strip_output = FALSE) {", 
-"  p <- parent.frame()", "  check_server_context(p)", "  assign(\"strip_output\", strip_output, envir = p)", 
-"  local(", "    {", "      encoded_txt <- shiny::eventReactive(", 
-"        input$hash_generate,", "        {", "          state <- learnr:::get_tutorial_state()", 
-"          shiny::validate(shiny::need(length(state) > 0, \"No progress yet.\"))", 
-"          shiny::validate(shiny::need(nchar(input$name) > 0, \"No name entered.\"))", 
-"          shiny::validate(shiny::need(nchar(input$studentID) > 0, \"Please enter your student ID\"))", 
-"          user_state <- purrr::map_dfr(state, identity, .id = \"label\")", 
-"          user_state <- dplyr::group_by(user_state, label, type, correct)", 
-"          user_state <- dplyr::summarize(", "            user_state,", 
-"            answer = list(answer),", "            timestamp = dplyr::first(timestamp),", 
-"            .groups = \"drop\"", "          )", "          user_state <- dplyr::relocate(user_state, correct, .before = timestamp)", 
-"          user_info <- tibble(", "            label = c(\"student_name\", \"student_id\"),", 
-"            type = \"identifier\",", "            answer = as.list(c(input$name, input$studentID)),", 
-"            timestamp = format(Sys.time(), \"%Y-%m-%d %H:%M:%S %Z\", tz = \"UTC\")", 
-"          )", "          learnrhash::encode_obj(bind_rows(user_info, user_state))", 
-"        }", "      )", "      output$hash_output <- shiny::renderText(encoded_txt())", 
-"    },", "    envir = p", "  )", "}", "", "hash_encoder_ui <- {", 
-"  shiny::div(", "    \"If you have completed this tutorial and are happy with all of your\",", 
-"    \"solutions, please enter your identifying information, then click the button below to generate your hash\",", 
-"    textInput(\"name\", \"What's your name?\"),", "    textInput(\"studentID\", \"What is your student ID?\"),", 
-"    renderText({", "      input$caption", "    })", "  )", "}", 
-"", "solution_code_card <- function(code, title = \"Solution\") {", 
-"  tags$div(", "    style = paste(", "      \"margin: 1rem 0 1.25rem;\",", 
-"      \"border: 1px solid #d7e3f3;\",", "      \"border-left: 5px solid #2f6f9f;\",", 
-"      \"border-radius: 8px;\",", "      \"background: #f8fbff;\",", 
-"      \"box-shadow: 0 2px 8px rgba(31, 45, 61, 0.08);\",", "      \"overflow: hidden;\"", 
-"    ),", "    tags$div(", "      style = paste(", "        \"display: flex;\",", 
-"        \"align-items: center;\",", "        \"justify-content: space-between;\",", 
-"        \"gap: 0.75rem;\",", "        \"padding: 0.7rem 0.9rem;\",", 
-"        \"background: #eef6ff;\",", "        \"border-bottom: 1px solid #d7e3f3;\"", 
-"      ),", "      tags$strong(title, style = \"color: #1f4e79; font-size: 1rem;\"),", 
-"      tags$span(", "        \"released\",", "        style = paste(", 
-"          \"padding: 0.15rem 0.5rem;\",", "          \"border-radius: 999px;\",", 
-"          \"background: #ffffff;\",", "          \"color: #3c6478;\",", 
-"          \"font-size: 0.78rem;\",", "          \"font-weight: 600;\"", 
-"        )", "      )", "    ),", "    tags$pre(", "      style = paste(", 
-"        \"margin: 0;\",", "        \"padding: 0.9rem 1rem;\",", 
-"        \"background: #ffffff;\",", "        \"border: 0;\",", 
-"        \"white-space: pre-wrap;\",", "        \"text-align: left;\"", 
-"      ),", "      tags$code(", "        htmltools::HTML(htmltools::htmlEscape(code)),", 
-"        style = \"display: block; color: #243447; font-size: 0.95rem; line-height: 1.45;\"", 
-"      )", "    )", "  )", "}", "", "timed_solution <- function(output_id, code, title = \"Solution\",", 
-"                           reveal_time = my_reveal_time,", "                           tz = \"America/New_York\",", 
-"                           check_every_ms = 1000) {", "  p <- parent.frame()", 
-"  check_server_context(p)", "", "  p$output[[output_id]] <- shiny::renderUI({", 
-"    shiny::invalidateLater(check_every_ms, p$session)", "    release_at <- as.POSIXct(reveal_time, tz = tz)", 
-"    if (Sys.time() < release_at) {", "      return(NULL)", "    }", 
-"    solution_code_card(code, title)", "  })", "}"), chunk_opts = list(
-    label = "setup", include = FALSE)), setup = NULL, chunks = list(
-    list(label = "chi-square-table", code = "observed_table <- xtabs(count ~ Class + Survived, data = titanic_counts)\nobserved_table\n\nchisq.test(observed_table)", 
-        opts = list(label = "\"chi-square-table\"", exercise = "TRUE"), 
-        engine = "r")), code_check = NULL, error_check = NULL, 
-    check = NULL, solution = NULL, tests = NULL, options = list(
-        eval = FALSE, echo = TRUE, results = "markup", tidy = FALSE, 
-        tidy.opts = NULL, collapse = FALSE, prompt = FALSE, comment = NA, 
-        highlight = FALSE, size = "normalsize", background = "#F7F7F7", 
-        strip.white = TRUE, cache = 0, cache.path = "01-06-lesson_cache/html/", 
-        cache.vars = NULL, cache.lazy = TRUE, dependson = NULL, 
-        autodep = FALSE, cache.rebuild = FALSE, fig.keep = "high", 
-        fig.show = "asis", fig.align = "default", fig.path = "01-06-lesson_files/figure-html/", 
-        dev = "png", dev.args = NULL, dpi = 192, fig.ext = "png", 
-        fig.width = 6.5, fig.height = 4, fig.env = "figure", 
-        fig.cap = NULL, fig.scap = NULL, fig.lp = "fig:", fig.subcap = NULL, 
-        fig.pos = "", out.width = 624, out.height = NULL, out.extra = NULL, 
-        fig.retina = 2, external = TRUE, sanitize = FALSE, interval = 1, 
-        aniopts = "controls,loop", warning = FALSE, error = FALSE, 
-        message = FALSE, render = NULL, ref.label = NULL, child = NULL, 
-        engine = "r", split = FALSE, include = TRUE, purl = TRUE, 
-        max.print = 1000, exercise.eval = FALSE, label = "chi-square-table", 
-        exercise = TRUE, code = c("observed_table <- xtabs(count ~ Class + Survived, data = titanic_counts)", 
-        "observed_table", "", "chisq.test(observed_table)"), 
-        out.width.px = 624, out.height.px = 384, params.src = "chi-square-table, exercise=TRUE", 
-        fig.num = 0, exercise.df_print = "paged", exercise.checker = "NULL"), 
-    engine = "r", version = "4"), class = c("r", "tutorial_exercise"
-)))
-</script>
- 
-<script type="application/shiny-prerendered" data-context="server">
-`tutorial-exercise-ex-ci-test-interpretation-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-ex-ci-test-interpretation-code-editor`)), session)
-output$`tutorial-exercise-ex-ci-test-interpretation-output` <- renderUI({
-  `tutorial-exercise-ex-ci-test-interpretation-result`()
-})
-</script>
-
-
-<script type="application/shiny-prerendered" data-context="server">
-learnr:::store_exercise_cache(structure(list(label = "ex-ci-test-interpretation", global_setup = structure(c("library(learnr)", 
-"library(tidyverse)", "library(shiny)", "", "knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)", 
-"tutorial_options(exercise.eval = FALSE)", "", "my_reveal_time <- \"2026-06-20 15:00:00\"", 
-"", "population <- tibble(", "  person = 1:10000,", "  supports_policy = rbinom(10000, size = 1, prob = 0.58)", 
-")", "", "prop_ci <- function(p_hat, n) {", "  se <- sqrt(p_hat * (1 - p_hat) / n)", 
-"  lower <- p_hat - 1.96 * se", "  upper <- p_hat + 1.96 * se", 
-"  c(lower, upper)", "}", "", "is_server_context <- function(.envir) {", 
-"  inherits(.envir$input, \"reactivevalues\") &", "    inherits(.envir$output, \"shinyoutput\") &", 
-"    inherits(.envir$session, \"ShinySession\")", "}", "", "check_server_context <- function(.envir) {", 
-"  if (!is_server_context(.envir)) {", "    calling_func <- deparse(sys.calls()[[sys.nframe() - 1]])", 
-"    err <- paste0(\"Function `\", calling_func, \"` must be called from an Rmd chunk where `context = \\\"server\\\"`\")", 
-"    stop(err, call. = FALSE)", "  }", "}", "", "encoder_logic <- function(strip_output = FALSE) {", 
-"  p <- parent.frame()", "  check_server_context(p)", "  assign(\"strip_output\", strip_output, envir = p)", 
-"  local(", "    {", "      encoded_txt <- shiny::eventReactive(", 
-"        input$hash_generate,", "        {", "          state <- learnr:::get_tutorial_state()", 
-"          shiny::validate(shiny::need(length(state) > 0, \"No progress yet.\"))", 
-"          shiny::validate(shiny::need(nchar(input$name) > 0, \"No name entered.\"))", 
-"          shiny::validate(shiny::need(nchar(input$studentID) > 0, \"Please enter your student ID\"))", 
-"          user_state <- purrr::map_dfr(state, identity, .id = \"label\")", 
-"          user_state <- dplyr::group_by(user_state, label, type, correct)", 
-"          user_state <- dplyr::summarize(", "            user_state,", 
-"            answer = list(answer),", "            timestamp = dplyr::first(timestamp),", 
-"            .groups = \"drop\"", "          )", "          user_state <- dplyr::relocate(user_state, correct, .before = timestamp)", 
-"          user_info <- tibble(", "            label = c(\"student_name\", \"student_id\"),", 
-"            type = \"identifier\",", "            answer = as.list(c(input$name, input$studentID)),", 
-"            timestamp = format(Sys.time(), \"%Y-%m-%d %H:%M:%S %Z\", tz = \"UTC\")", 
-"          )", "          learnrhash::encode_obj(bind_rows(user_info, user_state))", 
-"        }", "      )", "      output$hash_output <- shiny::renderText(encoded_txt())", 
-"    },", "    envir = p", "  )", "}", "", "hash_encoder_ui <- {", 
-"  shiny::div(", "    \"If you have completed this tutorial and are happy with all of your\",", 
-"    \"solutions, please enter your identifying information, then click the button below to generate your hash\",", 
-"    textInput(\"name\", \"What's your name?\"),", "    textInput(\"studentID\", \"What is your student ID?\"),", 
-"    renderText({", "      input$caption", "    })", "  )", "}", 
-"", "solution_code_card <- function(code, title = \"Solution\") {", 
-"  tags$div(", "    style = paste(", "      \"margin: 1rem 0 1.25rem;\",", 
-"      \"border: 1px solid #d7e3f3;\",", "      \"border-left: 5px solid #2f6f9f;\",", 
-"      \"border-radius: 8px;\",", "      \"background: #f8fbff;\",", 
-"      \"box-shadow: 0 2px 8px rgba(31, 45, 61, 0.08);\",", "      \"overflow: hidden;\"", 
-"    ),", "    tags$div(", "      style = paste(", "        \"display: flex;\",", 
-"        \"align-items: center;\",", "        \"justify-content: space-between;\",", 
-"        \"gap: 0.75rem;\",", "        \"padding: 0.7rem 0.9rem;\",", 
-"        \"background: #eef6ff;\",", "        \"border-bottom: 1px solid #d7e3f3;\"", 
-"      ),", "      tags$strong(title, style = \"color: #1f4e79; font-size: 1rem;\"),", 
-"      tags$span(", "        \"released\",", "        style = paste(", 
-"          \"padding: 0.15rem 0.5rem;\",", "          \"border-radius: 999px;\",", 
-"          \"background: #ffffff;\",", "          \"color: #3c6478;\",", 
-"          \"font-size: 0.78rem;\",", "          \"font-weight: 600;\"", 
-"        )", "      )", "    ),", "    tags$pre(", "      style = paste(", 
-"        \"margin: 0;\",", "        \"padding: 0.9rem 1rem;\",", 
-"        \"background: #ffffff;\",", "        \"border: 0;\",", 
-"        \"white-space: pre-wrap;\",", "        \"text-align: left;\"", 
-"      ),", "      tags$code(", "        htmltools::HTML(htmltools::htmlEscape(code)),", 
-"        style = \"display: block; color: #243447; font-size: 0.95rem; line-height: 1.45;\"", 
-"      )", "    )", "  )", "}", "", "timed_solution <- function(output_id, code, title = \"Solution\",", 
-"                           reveal_time = my_reveal_time,", "                           tz = \"America/New_York\",", 
-"                           check_every_ms = 1000) {", "  p <- parent.frame()", 
-"  check_server_context(p)", "", "  p$output[[output_id]] <- shiny::renderUI({", 
-"    shiny::invalidateLater(check_every_ms, p$session)", "    release_at <- as.POSIXct(reveal_time, tz = tz)", 
-"    if (Sys.time() < release_at) {", "      return(NULL)", "    }", 
-"    solution_code_card(code, title)", "  })", "}"), chunk_opts = list(
-    label = "setup", include = FALSE)), setup = NULL, chunks = list(
-    list(label = "ex-ci-test-interpretation", code = "", opts = list(
-        label = "\"ex-ci-test-interpretation\"", exercise = "TRUE"), 
-        engine = "r")), code_check = NULL, error_check = NULL, 
-    check = NULL, solution = NULL, tests = NULL, options = list(
-        eval = FALSE, echo = TRUE, results = "markup", tidy = FALSE, 
-        tidy.opts = NULL, collapse = FALSE, prompt = FALSE, comment = NA, 
-        highlight = FALSE, size = "normalsize", background = "#F7F7F7", 
-        strip.white = TRUE, cache = 0, cache.path = "01-06-lesson_cache/html/", 
-        cache.vars = NULL, cache.lazy = TRUE, dependson = NULL, 
-        autodep = FALSE, cache.rebuild = FALSE, fig.keep = "high", 
-        fig.show = "asis", fig.align = "default", fig.path = "01-06-lesson_files/figure-html/", 
-        dev = "png", dev.args = NULL, dpi = 192, fig.ext = "png", 
-        fig.width = 6.5, fig.height = 4, fig.env = "figure", 
-        fig.cap = NULL, fig.scap = NULL, fig.lp = "fig:", fig.subcap = NULL, 
-        fig.pos = "", out.width = 624, out.height = NULL, out.extra = NULL, 
-        fig.retina = 2, external = TRUE, sanitize = FALSE, interval = 1, 
-        aniopts = "controls,loop", warning = FALSE, error = FALSE, 
-        message = FALSE, render = NULL, ref.label = NULL, child = NULL, 
-        engine = "r", split = FALSE, include = TRUE, purl = TRUE, 
-        max.print = 1000, exercise.eval = FALSE, label = "ex-ci-test-interpretation", 
+        max.print = 1000, exercise.eval = FALSE, label = "ex-prior-interpretation", 
         exercise = TRUE, code = "", out.width.px = 624, out.height.px = 384, 
-        params.src = "ex-ci-test-interpretation, exercise=TRUE", 
+        params.src = "ex-prior-interpretation, exercise=TRUE", 
         fig.num = 0L, exercise.df_print = "paged", exercise.checker = "NULL"), 
     engine = "r", version = "4"), class = c("r", "tutorial_exercise"
 )))
 </script>
  
 <script type="application/shiny-prerendered" data-context="server">
-`tutorial-exercise-ex-final-chi-square-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-ex-final-chi-square-code-editor`)), session)
-output$`tutorial-exercise-ex-final-chi-square-output` <- renderUI({
-  `tutorial-exercise-ex-final-chi-square-result`()
+`tutorial-exercise-ex-final-posterior-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-ex-final-posterior-code-editor`)), session)
+output$`tutorial-exercise-ex-final-posterior-output` <- renderUI({
+  `tutorial-exercise-ex-final-posterior-result`()
 })
 </script>
 
 
 <script type="application/shiny-prerendered" data-context="server">
-learnr:::store_exercise_cache(structure(list(label = "ex-final-chi-square", global_setup = structure(c("library(learnr)", 
+learnr:::store_exercise_cache(structure(list(label = "ex-final-posterior", global_setup = structure(c("library(learnr)", 
 "library(tidyverse)", "library(shiny)", "", "knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)", 
 "tutorial_options(exercise.eval = FALSE)", "", "my_reveal_time <- \"2026-06-20 15:00:00\"", 
-"", "population <- tibble(", "  person = 1:10000,", "  supports_policy = rbinom(10000, size = 1, prob = 0.58)", 
-")", "", "prop_ci <- function(p_hat, n) {", "  se <- sqrt(p_hat * (1 - p_hat) / n)", 
-"  lower <- p_hat - 1.96 * se", "  upper <- p_hat + 1.96 * se", 
-"  c(lower, upper)", "}", "", "is_server_context <- function(.envir) {", 
+"", "theta_grid <- seq(0, 1, length.out = 101)", "", "is_server_context <- function(.envir) {", 
 "  inherits(.envir$input, \"reactivevalues\") &", "    inherits(.envir$output, \"shinyoutput\") &", 
 "    inherits(.envir$session, \"ShinySession\")", "}", "", "check_server_context <- function(.envir) {", 
 "  if (!is_server_context(.envir)) {", "    calling_func <- deparse(sys.calls()[[sys.nframe() - 1]])", 
@@ -1743,17 +1690,17 @@ learnr:::store_exercise_cache(structure(list(label = "ex-final-chi-square", glob
 "    if (Sys.time() < release_at) {", "      return(NULL)", "    }", 
 "    solution_code_card(code, title)", "  })", "}"), chunk_opts = list(
     label = "setup", include = FALSE)), setup = NULL, chunks = list(
-    list(label = "ex-final-chi-square", code = "", opts = list(
-        label = "\"ex-final-chi-square\"", exercise = "TRUE"), 
+    list(label = "ex-final-posterior", code = "", opts = list(
+        label = "\"ex-final-posterior\"", exercise = "TRUE"), 
         engine = "r")), code_check = NULL, error_check = NULL, 
     check = NULL, solution = NULL, tests = NULL, options = list(
         eval = FALSE, echo = TRUE, results = "markup", tidy = FALSE, 
         tidy.opts = NULL, collapse = FALSE, prompt = FALSE, comment = NA, 
         highlight = FALSE, size = "normalsize", background = "#F7F7F7", 
-        strip.white = TRUE, cache = 0, cache.path = "01-06-lesson_cache/html/", 
+        strip.white = TRUE, cache = 0, cache.path = "01-07-lesson_cache/html/", 
         cache.vars = NULL, cache.lazy = TRUE, dependson = NULL, 
         autodep = FALSE, cache.rebuild = FALSE, fig.keep = "high", 
-        fig.show = "asis", fig.align = "default", fig.path = "01-06-lesson_files/figure-html/", 
+        fig.show = "asis", fig.align = "default", fig.path = "01-07-lesson_files/figure-html/", 
         dev = "png", dev.args = NULL, dpi = 192, fig.ext = "png", 
         fig.width = 6.5, fig.height = 4, fig.env = "figure", 
         fig.cap = NULL, fig.scap = NULL, fig.lp = "fig:", fig.subcap = NULL, 
@@ -1762,9 +1709,9 @@ learnr:::store_exercise_cache(structure(list(label = "ex-final-chi-square", glob
         aniopts = "controls,loop", warning = FALSE, error = FALSE, 
         message = FALSE, render = NULL, ref.label = NULL, child = NULL, 
         engine = "r", split = FALSE, include = TRUE, purl = TRUE, 
-        max.print = 1000, exercise.eval = FALSE, label = "ex-final-chi-square", 
+        max.print = 1000, exercise.eval = FALSE, label = "ex-final-posterior", 
         exercise = TRUE, code = "", out.width.px = 624, out.height.px = 384, 
-        params.src = "ex-final-chi-square, exercise=TRUE", fig.num = 0L, 
+        params.src = "ex-final-posterior, exercise=TRUE", fig.num = 0L, 
         exercise.df_print = "paged", exercise.checker = "NULL"), 
     engine = "r", version = "4"), class = c("r", "tutorial_exercise"
 )))
@@ -1772,8 +1719,8 @@ learnr:::store_exercise_cache(structure(list(label = "ex-final-chi-square", glob
  
 <script type="application/shiny-prerendered" data-context="server">
 timed_solution(
-  "ex_final_chi_square_solution_code",
-  "sex_survival_counts <- as.data.frame(Titanic) %>%\n  filter(Age == \"Adult\") %>%\n  group_by(Sex, Survived) %>%\n  summarise(count = sum(Freq), .groups = \"drop\")\n\nsex_survival_table <- xtabs(count ~ Sex + Survived, data = sex_survival_counts)\n\nchisq.test(sex_survival_table)"
+  "ex_final_posterior_solution_code",
+  "heads <- 18\nflips <- 30\n\nfinal_grid <- tibble(theta = theta_grid, prior = 1) %>%\n  mutate(\n    likelihood = dbinom(heads, size = flips, prob = theta),\n    posterior = prior * likelihood / sum(prior * likelihood)\n  )\n\nggplot(final_grid, aes(x = theta, y = posterior)) +\n  geom_col(width = 0.01) +\n  labs(x = \"Possible value of theta\", y = \"Posterior probability\")\n\nfinal_grid %>%\n  summarise(probability_theta_above_half = sum(posterior[theta > 0.5]))"
 )
 </script>
 
@@ -1803,8 +1750,8 @@ encoder_logic()
 
 <!-- begin doc-metadata -->
 <div id="doc-metadata">
-<h1 class="title toc-ignore" style="display:none;">Tutorial 6:
-Confidence Intervals and Hypothesis Tests</h1>
+<h1 class="title toc-ignore" style="display:none;">Tutorial 7: Bayesian
+Updating</h1>
 </div>
 <!-- end doc-metadata -->
 

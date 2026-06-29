@@ -89,9 +89,10 @@ The tutorials are intended to prepare students for labs and projects while reinf
 
 | Tutorial | Main objective alignment | Main student outcome |
 | --- | --- | --- |
-| Tutorial 1: R Basics and Data Objects | M1 LO1, M1 LO3, M6 LO1, M6 LO2 | Students can read simple R code, create objects, work with vectors, and recognize variable types. |
-| Tutorial 2: Data Wrangling with `dplyr` | M1 LO1, M1 LO3, M1 LO4, M6 LO1 | Students can import, inspect, clean, transform, and summarize a data frame. |
-| Tutorial 3: Data Visualization with `ggplot2` | M1 LO4, M2 LO3, M6 LO1 | Students can choose appropriate plots and describe distributions or associations in context. |
-| Tutorial 4: Functions, Loops, and Probability Calculations | M2 LO1, M2 LO3, M2 LO4, M2 LO5, M6 LO2 | Students can use repeated computation to check probability rules, expected values, and simple distributional models. |
-| Tutorial 5: Simulation, Sampling Distributions, and Inference | M3 LO1, M3 LO2, M3 LO3, M3 LO4, M3 LO5, M6 LO3 | Students can simulate sampling variability and connect it to confidence intervals and hypothesis tests. |
-| Tutorial 6: Modeling Extension | M4 LO4, M4 LO5, M4 LO7, M5 LO1, M5 LO2, M5 LO3, M6 LO4 | Students can explain how a model supports inference and communicate what the analysis does and does not show. |
+| Tutorial 1: R Basics and Data Objects | M1 LO1, M1 LO3, M6 LO1, M6 LO2 | Students can read simple R code, create objects, work with vectors, and recognize variable types before Lab 2. |
+| Tutorial 2: Data Wrangling with `dplyr` | M1 LO1, M1 LO3, M1 LO4, M6 LO1 | Students can import, inspect, clean, transform, and summarize a data frame before Lab 2. |
+| Tutorial 3: Data Visualization with `ggplot2` | M1 LO4, M6 LO1 | Students can choose appropriate plots and describe distributions or associations in context before Lab 3. |
+| Tutorial 4: Functions, Loops, and Probability Calculations | M2 LO1, M2 LO2, M2 LO3, M2 LO4, M6 LO2 | Students can use repeated computation to check probability rules, expected values, variance, and long-run simulation behavior before Lab 4. |
+| Tutorial 5: LLN, CLT, and Sampling Distributions | M2 LO2, M2 LO6, M3 LO1, M3 LO2, M6 LO3 | Students can simulate sampling distributions, compare sample sizes, and connect simulated spread to standard error before Lab 5. |
+| Tutorial 6: Confidence Intervals and Hypothesis Tests | M3 LO3, M3 LO4, M3 LO5, M4 LO1, M4 LO2, M6 LO3 | Students can construct confidence intervals, run simple hypothesis tests, and organize categorical data for chi-square inference before Lab 6. |
+| Tutorial 7: Bayesian Updating | M5 LO1, M5 LO2, M5 LO3, M6 LO4 | Students can use priors, likelihoods, and posterior distributions to compare Bayesian and frequentist language before Lab 7. |
