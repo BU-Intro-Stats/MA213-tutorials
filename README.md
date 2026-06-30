@@ -17,138 +17,137 @@ Interactive tutorials developed with the `learnr` package.
 Each lesson folder contains the source `.Rmd` tutorial and a rendered
 `.html` file.
 
-## Instructor Manual
+## Instructor Editing Guide
 
-The editable source for each tutorial is the `.Rmd` file inside its
-lesson folder, for example `01-lesson/01-01-lesson.Rmd`. The `.html`
-file is the rendered student-facing tutorial. Edit the `.Rmd` first,
-then render it again to update the `.html`.
+Edit the source `.Rmd` file inside each lesson folder, then render the
+file again to update the student-facing `.html` tutorial.
 
-### Basic Editing Workflow
-
-1. Open the lesson `.Rmd` file you want to change.
-2. Edit the question text, exercise chunk, hint chunk, or solution
-   block.
-3. Knit or render the `.Rmd` file.
-4. Open the rendered `.html` tutorial and test the changed exercise.
-
-In RStudio, use the **Run Document** or **Knit** button. From R, you can
-also render a lesson with:
+For example:
 
 ```r
 rmarkdown::render("01-lesson/01-01-lesson.Rmd")
 ```
 
-### Adding or Editing a Question
+### 1. How to Make a Quiz
 
-Most student exercises use a learnr exercise chunk:
+Use `quiz()`, `question()`, and `answer()` in a chunk with
+`echo=FALSE`. Mark the correct answer with `correct = TRUE`.
 
 ````markdown
-### Question title
-
-Write the instructions students should see.
-
-```{r ex-new-topic, exercise=TRUE}
-# Optional starter code goes here
+```{r variable-type-multiple-choice, echo=FALSE}
+quiz(
+  question(
+    "Which value should usually be stored as character data in R?",
+    answer("98.5"),
+    answer("\"BU Terrier\"", correct = TRUE),
+    answer("TRUE"),
+    answer("FALSE"),
+    allow_retry = TRUE
+  )
+)
 ```
 ````
 
-To edit an existing question, change the heading, instructions, or the
-starter code inside the `exercise=TRUE` chunk.
+Use a unique chunk label, such as `variable-type-multiple-choice`.
 
-Use a unique chunk label for every exercise, such as `ex-mean-income` or
-`plot-histogram-1`. Do not reuse a label that already appears in the
-same `.Rmd` file.
+### 2. How to Make an Exercise
 
-### Adding or Editing Hints
-
-Hints are ordinary R chunks placed after the exercise. They should use a
-label related to the exercise:
+Use an R chunk with `exercise=TRUE`. Anything inside the chunk appears
+as starter code for students.
 
 ````markdown
-```{r ex-new-topic-hint-1}
-# Think about which object contains the values you need.
-```
+### Assign numeric value 655 to the variable named `number` and print it
 
-```{r ex-new-topic-hint-2}
-# Try: mean(data$variable)
+```{r ex1, exercise=TRUE}
+# Students write their answer here
 ```
 ````
 
-To edit a hint, change the text or code inside the hint chunk. To add
-more hints, add another chunk with a new label such as
-`ex-new-topic-hint-2`.
+To provide starter code, place it inside the exercise chunk:
 
-### Adding or Editing Timed Solutions
+````markdown
+```{r fix-vector-error, exercise=TRUE}
+broken_numbers <- c(2, 4, 6, 8
+broken_numbers
+```
+````
 
-Timed solutions are created with the helper function `timed_solution()`
-in a server-context chunk. The solution is displayed through a matching
-`uiOutput()` chunk.
+Every exercise chunk needs a unique label, such as `ex1`,
+`fix-vector-error`, or `subset-ex1`.
+
+### 3. How to Give a Hint
+
+Place a regular R chunk immediately after the exercise. Use a related
+label ending in `-hint-1`, `-hint-2`, and so on.
+
+````markdown
+```{r ex1-hint-1}
+variable_name <- value
+```
+
+```{r ex1-hint-2}
+variable_name = value # This also works
+```
+````
+
+Hints are shown through the learnr exercise interface. Keep hints short:
+the first hint should nudge students, and later hints can be more
+specific.
+
+### 4. How to Give a Solution With Reveal Time
+
+Each lesson has a reveal time near the top of the setup chunk:
+
+```r
+my_reveal_time <- "2026-09-20 15:00:00"  # solution reveal time
+```
+
+Change this date and time when you want all timed solutions in that
+lesson to become visible. The helper uses `America/New_York` by default.
+
+Add the solution using `timed_solution()` in a server-context chunk,
+then display it with a matching `uiOutput()` chunk.
 
 ````markdown
 ```{r, context="server", echo=FALSE}
 timed_solution(
-  "ex_new_topic_solution_code",
-  "answer <- mean(data$variable)\nprint(answer)"
+  "ex1_solution_code",
+  "number <- 655\nprint(number)"
 )
 ```
 
-```{r ex-new-topic-solution-ui, echo=FALSE}
-uiOutput("ex_new_topic_solution_code")
+```{r ex1-solution-ui, echo=FALSE}
+uiOutput("ex1_solution_code")
 ```
 ````
 
-When adding a solution:
+Important details:
 
-- Use a unique output id, such as `ex_new_topic_solution_code`.
-- Use the same output id in both `timed_solution()` and `uiOutput()`.
-- Put `\n` inside the solution string where the displayed code should
-  move to a new line.
-- Keep the server chunk label blank or unique. The `uiOutput()` chunk
-  should have a unique label ending in `-solution-ui`.
+- The output id must match exactly in both places:
+  `ex1_solution_code`.
+- Use `\n` inside the solution string to create a new line.
+- Use a unique label for the UI chunk, usually ending in
+  `-solution-ui`.
 
-To edit a solution, change the code string inside `timed_solution()`.
+### 5. How to Prepare Variables Without Showing Them to Students
 
-Some older lessons may also include a regular chunk such as
-`{r ex2-solution}`. Those chunks are visible learnr solution/support
-chunks. For the current timed-release style, prefer the
-`timed_solution()` plus `uiOutput()` pattern.
-
-### Changing the Solution Reveal Time
-
-Each lesson defines a reveal time near the top of the setup chunk:
-
-```r
-my_reveal_time <- "2026-06-20 15:00:00"  # solution reveal time
-```
-
-Change this value to the desired release date and time. The helper uses
-the `America/New_York` time zone by default.
-
-### Adding Non-Code Checkpoints
-
-For short-answer prompts, classification questions, or reflection
-questions, you can still use an exercise chunk and place comments as
-prompts:
+Learnr exercises run in separate environments. If an exercise needs an
+object such as `A`, define it in a hidden setup chunk and connect that
+setup chunk to the exercise using `exercise.setup`.
 
 ````markdown
-```{r variable-type-checkpoint, exercise=TRUE}
-# student_id:
-# final_exam_score:
-# class_year:
+```{r print-values-setup, include=FALSE}
+A <- 10
+```
+
+```{r print-values, exercise=TRUE, exercise.setup="print-values-setup"}
+A # calling the variable will display its value
+print(A) # explicitly print the value of the variable
 ```
 ````
 
-This gives students a place to type their answer while keeping the
-prompt visible.
+Students see only the exercise code, but `A <- 10` is available when
+they run the exercise.
 
-### Common Things to Check Before Publishing
-
-- The `.Rmd` renders without errors.
-- Every chunk label is unique.
-- Every `timed_solution()` output id matches its `uiOutput()` id.
-- The reveal time is correct for the class schedule.
-- Hints appear in the intended order.
-- Starter code runs or intentionally produces the error students are
-  asked to fix.
-- The rendered `.html` file is updated after changes.
+Use this pattern for any data, vectors, or variables that students need
+inside an exercise but should not see as starter code.
