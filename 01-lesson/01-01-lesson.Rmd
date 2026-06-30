@@ -22,10 +22,13 @@ knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 tutorial_options(exercise.eval = FALSE)
 
 
-my_reveal_time <- "2026-06-20 15:00:00"  # solution reveal time
+my_reveal_time <- "2026-09-20 15:00:00"  # solution reveal time
 
 
 # Setup for in some exercise chunks ... because each chunk in learnr (shiny app) works independently (not sharing env) 
+
+A <- 10
+
 hsb2_public <- hsb2 |> 
   filter(schtyp == "public")
 
@@ -193,8 +196,8 @@ timed_solution <- function(output_id, code, title = "Solution",
     solution_code_card(code, title)
   })
 }
-
 ```
+
 
 ## Welcome
 
@@ -259,6 +262,7 @@ library(tidyverse)
 library(openintro)
 ```
 
+
 ## R is a calculator: basic operations
 
 Basic math operations in R can be used as the following.
@@ -283,6 +287,7 @@ $(\frac{12}{24})^2$ can be obtained by
 (12/24)**(2) # alternative exponentiation operator
 ```
 
+
 ### Assign values to a variable
 
 Let's say if you want to save 10 to variable `A`. You can do the
@@ -294,15 +299,21 @@ A <- 10
 A = 10 #   '=' doesn't mean equal sign. It is the same as `<-` operator
 ```
 
+
 Note: The `#` symbol is used to write comments in R code.
 
 And you can check what value the variable `A` has by calling it or using
 `print()` function
 
-```{r print-values, exercise=TRUE}
+```{r print-values-setup, include=FALSE}
+A <- 10
+```
+
+```{r print-values, exercise=TRUE, exercise.setup="print-values-setup"}
 A # calling the variable will display its value
 print(A) # explicitly print the value of the variable
 ```
+
 
 ### Strings (character type)
 
@@ -316,6 +327,7 @@ s1
 s2
 ```
 
+
 ### Concatenate strings
 
 You can concatenate the strings using `paste()` or `paste0()` functions.
@@ -327,6 +339,7 @@ greeting2 <- paste0("Hello", "world")  # paste0 has no separator argument needed
 greeting2
 ```
 
+
 ## Assign values to a vector
 
 You can assign multiple values to a vector.
@@ -337,6 +350,7 @@ FirstName <- c("Tom", "Sarah", "Nick", "Amy", "John")
 GPA
 FirstName
 ```
+
 
 There are some useful functions for a vector
 
@@ -367,27 +381,36 @@ vector3 = rep("BU", 25)
 vector3
 ```
 
+
 ## Variable Type Checkpoint
 
-Before working with more data objects, pause to classify variables by
-the kind of information they contain.
+Before working with more data objects, pause to identify the type of
+data R would use to store each value.
 
-- **Numerical** variables measure or count quantities.
-- **Categorical** variables place observations into groups.
-- **Ordinal** variables are categorical variables with a meaningful
-  order.
-- **Identifier** variables label observations but should not usually be
-  summarized as measurements.
+- **numeric** values are numbers that can be used in calculations.
+- **character** values are text values, usually written inside quotation
+  marks.
+- **logical** values are `TRUE` or `FALSE`.
+- **factor** values store group labels with a fixed set of possible
+  categories.
 
-For each variable below, write whether it is numerical, categorical,
-ordinal, or an identifier.
+For each variable below, write whether R should store it as numeric,
+character, logical, or factor.
 
-```{r variable-type-checkpoint, exercise=TRUE}
-# student_id:
-# final_exam_score:
-# class_year, such as first-year, sophomore, junior, senior:
-# favorite_campus_event:
+
+```{r variable-type-multiple-choice, echo=FALSE}
+quiz(
+  question(
+    "Which value should usually be stored as character data in R?",
+    answer("98.5"),
+    answer("\"BU Terrier\"", correct = TRUE),
+    answer("TRUE"),
+    answer("FALSE"),
+    allow_retry = TRUE
+  )
+)
 ```
+
 
 ## Reading and Fixing an Error
 
@@ -405,6 +428,7 @@ broken_numbers
 # Check whether every opening parenthesis has a matching closing parenthesis.
 ```
 
+
 ## Your turn!
 
 ### Assign numeric value 655 to the variable named `number` and print it
@@ -413,12 +437,11 @@ broken_numbers
 ```
 
 ```{r ex1-hint-1}
-# Try the following command for loading the csv file:
-read.csv("data/icecream.csv")
+variable_name <- value
 ```
 
 ```{r ex1-hint-2}
-# Hint 2
+variable_name = value # This also works
 ```
 
 ```{r, context="server", echo=FALSE}
@@ -432,17 +455,17 @@ timed_solution(
 uiOutput("ex1_solution_code")
 ```
 
+
 ### Assign the following value to a vector `some_numbers` and print it.
 
 1, 3, 5, 7, 9, 11
 
 ```{r ex2, exercise=TRUE}
-
 ```
 
 ```{r ex2-hint-1}
-# Try the following command for loading the csv file:
-read.csv("data/icecream.csv")
+# Try seq(); it is the number from 1 to 11 increasing by 2.
+
 ```
 
 ```{r, context="server", echo=FALSE}
@@ -456,13 +479,7 @@ timed_solution(
 uiOutput("ex2_solution_code")
 ```
 
-```{r ex2-solution}
-some_numbers <- c(1, 3, 5, 7, 9, 11)
-# or
-some_numbers <- seq(1,11,2)
 
-print(some_numbers)
-```
 
 ## Accessing vector elements
 
@@ -478,6 +495,7 @@ SomeNames <- c("Alpha", "Bravo", "Charlie")
 SomeNames
 ```
 
+
 ![Index of Vector Elements](images/index.jpg){width="500" height="250"}
 
 For example,
@@ -492,6 +510,7 @@ SomeNames <- c("Alpha", "Bravo", "Charlie")
 print(SomeNames[3]) # third element
 print(SomeNames[2:3]) # second and third elements
 ```
+
 
 ## Subset vectors
 
@@ -519,6 +538,7 @@ Numbers <- c(20, 30, 50, 70, 120, 200)
 Numbers[Numbers < 100] 
 ```
 
+
 ![Subsetting vector using condition](images/Slicing.jpg){width="500"
 height="350"}
 
@@ -529,11 +549,26 @@ height="350"}
 10, 20, 30, 40, 50, 60
 
 ```{r subset-ex1, exercise=TRUE}
-#
-#
-numbers<-seq(10,60,10)
-numbers
+
 ```
+
+```{r subset-ex1-hint-1}
+# Try seq(); it is the number from 10 to 11 increasing by 2.
+
+```
+
+```{r, context="server", echo=FALSE}
+timed_solution(
+  "subset-ex1_solution_code",
+  "numbers<-seq(10,60,10) \nnumbers"
+)
+```
+
+```{r subset-ex1-solution-ui, echo=FALSE}
+uiOutput("subset-ex1_solution_code")
+```
+
+
 
 From `numbers` object, print the numbers that are less than 40.
 
@@ -545,14 +580,23 @@ From `numbers` object, print the numbers that are less than 40.
 numbers < 40
 ```
 
-## Final Reflection
-
-In one or two sentences, explain the difference between assigning a
-value and printing a value in R.
-
-```{r assignment-printing-reflection, exercise=TRUE}
+```{r subset-ex2-hint-2}
+# You can put the condition within the numbers with square brackets
 
 ```
+
+```{r, context="server", echo=FALSE}
+timed_solution(
+  "subset_ex2_solution_code",
+  "numbers[numbers<40]"
+)
+```
+
+```{r subset-ex2-solution-ui, echo=FALSE}
+uiOutput("subset_ex2_solution_code")
+```
+
+
 
 ## Submit
 
