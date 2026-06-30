@@ -26,15 +26,11 @@ my_reveal_time <- "2026-06-20 15:00:00"  # solution reveal time
 
 
 # Setup for in some exercise chunks ... because each chunk in learnr (shiny app) works independently (not sharing env) 
-hsb2_public <- hsb2 |> 
-  filter(schtyp == "public")
-
-avg_read <- mean(hsb2$read)
 
 numbers<-seq(10,60,10)
 
-df <- read.csv("airquality.csv")
-df_clean <- df |> drop_na()
+df <- datasets::airquality
+df <- df |> drop_na()
 
 
 
@@ -198,15 +194,14 @@ timed_solution <- function(output_id, code, title = "Solution",
 }
 ```
 
-
 ## Welcome
 
 Hello, and welcome to **Data Transformation and Summaries**!
 
-In this tutorial we will use R to load data, inspect variables, create
+In this tutorial, we will use R to load data, inspect variables, create
 new variables, filter rows, remove missing values, and make contingency
-tables. This tutorial is preparation for **Lab 2**, together with
-Tutorial 1.
+tables. Together with Tutorial 1, this tutorial prepares you for
+**Lab 2**.
 
 Our learning goals are to:
 
@@ -233,9 +228,9 @@ library(tidyr)
 
 ## New York Air Quality Data
 
-The New York air quality data contain daily air quality measurements in
-New York from May to September 1973. The data have 153 observations and
-6 variables.
+The New York air quality data contain daily air quality measurements
+from New York City from May to September 1973. The full data set has 153
+observations and 6 variables.
 
 Each row is one day. The variables include ozone level, solar radiation,
 wind speed, temperature, month, and day.
@@ -245,11 +240,16 @@ You can read more about the original data description here:
 
 ## Import the Data
 
-The file `airquality.csv` is stored in this lesson folder. We can read
-the file and save it as an object named `df`.
+For the interactive exercises, we have already loaded the complete cases
+from the air quality data into an object named `df`. Print the data.
 
-```{r import-airquality, exercise=TRUE}
-df <- read.csv("airquality.csv")
+```{r import-airquality-setup, include=FALSE}
+df <- datasets::airquality
+df <- df %>% drop_na()
+```
+
+```{r import-airquality, exercise=TRUE, exercise.setup="import-airquality-setup"}
+print(df)
 ```
 
 ## Inspect the Data
@@ -257,107 +257,247 @@ df <- read.csv("airquality.csv")
 Before analyzing a data set, it is helpful to look at its structure,
 variable names, and first few rows.
 
-```{r inspect-airquality, exercise=TRUE}
+```{r inspect-airquality, exercise=TRUE, exercise.setup="import-airquality-setup"}
 glimpse(df)
 names(df)
 head(df)
 ```
 
+## What Did You See in the Output?
+
+```{r question1, echo=FALSE}
+quiz(
+  question(
+    "How many rows are in `df`?",
+    answer("6"),
+    answer("Ozone"),
+    answer("10"),
+    answer("111", correct = TRUE),
+    allow_retry = TRUE
+  )
+)
+```
+
 ## The Pipe Operator
 
-The pipe operator sends the result from one step into the next step.
-You can read it as "then."
+The pipe operator sends the result of one step into the next step. You
+can read it as "then."
 
 `df %>% filter(Month == 5)` means "start with `df`, then select all rows
 where `Month` equals 5."
 
-```{r pipe-filter-example, exercise=TRUE}
+```{r pipe-filter-example, exercise=TRUE, exercise.setup="import-airquality-setup"}
 df %>% 
   filter(Month == 5)
 ```
 
 The native R pipe `|>` works similarly.
 
-```{r native-pipe-example, exercise=TRUE}
+```{r native-pipe-example2, exercise=TRUE, exercise.setup="import-airquality-setup"}
 df |> 
   select(Ozone, Wind, Month) |>
   filter(Month == 5)
 ```
 
+Pipe operators can be combined with assignment to create a new object.
+For example, if you want to select the `Ozone`, `Wind`, and `Month`
+columns, keep only observations from May, and assign the result to
+`df2`, you can write:
+
+```{r native-pipe-example3, exercise=TRUE, exercise.setup="import-airquality-setup"}
+df2 <- df |> 
+  select(Ozone, Wind, Month) |>
+  filter(Month == 5)
+
+print(df2)
+```
+
 ## `dplyr` Data Manipulation Functions
 
-Common `dplyr` functions include:
+Here is a summary of commonly used `dplyr` functions. It is helpful to
+think about whether each function works mainly with rows, columns, or
+groups of rows.
 
-- `filter()` chooses rows based on column values.
-- `slice()` chooses rows based on row location.
-- `arrange()` changes the order of rows.
-- `select()` chooses columns.
-- `rename()` changes column names.
-- `mutate()` changes existing columns or creates new columns.
-- `relocate()` changes the order of columns.
-- `summarise()` collapses rows into summaries.
+- Rows:
 
-## Row or Column Checkpoint
+  - [`filter()`](https://dplyr.tidyverse.org/reference/filter.html)
+    chooses rows based on column values.
 
-Students often mix up `filter()` and `select()`. Use this checkpoint to
-separate the two ideas before writing longer data pipelines.
+    Usage: `df |> filter(Month == 5)`: keeps only the rows from May.
 
-For each task below, write whether you would use `filter()` or
-`select()`.
+  - [`slice()`](https://dplyr.tidyverse.org/reference/slice.html)
+    chooses rows based on location.
 
-```{r filter-select-checkpoint, exercise=TRUE}
-# Keep only days in July:
-# Keep only the Ozone, Temp, and Wind variables:
-# Keep only rows where Wind is greater than 10:
-# Keep only the Month column:
-```
+    Usage: `df |> slice(1:5)`: keeps only rows 1 through 5.
+
+  - [`arrange()`](https://dplyr.tidyverse.org/reference/arrange.html)
+    changes the order of the rows.
+
+    Usage: `df |> arrange(Temp)`: sorts the rows from lowest
+    temperature to highest temperature.
+
+- Columns:
+
+  - [`select()`](https://dplyr.tidyverse.org/reference/select.html)
+    chooses which columns to keep.
+
+    Usage: `df |> select(Ozone, Temp, Month)`: keeps only the `Ozone`,
+    `Temp`, and `Month` columns.
+
+  - [`rename()`](https://dplyr.tidyverse.org/reference/rename.html)
+    changes the name of columns.
+
+    Usage: `df |> rename(Temperature = Temp)`: changes the column name
+    `Temp` to `Temperature`.
+
+  - [`mutate()`](https://dplyr.tidyverse.org/reference/mutate.html)
+    changes the values of columns and creates new columns.
+
+    Usage: `df |> mutate(Temp_C = (Temp - 32) * 5 / 9)`: creates a new
+    Celsius temperature column named `Temp_C`.
+
+  - [`relocate()`](https://dplyr.tidyverse.org/reference/relocate.html)
+    changes the order of the columns.
+
+    Usage: `df |> relocate(Month, Day)`: moves the `Month` and `Day`
+    columns to the front.
+
+- Groups of rows:
+
+  - [`summarise()`](https://dplyr.tidyverse.org/reference/summarise.html)
+    collapses a group into a single row.
+
+    Usage: `df |> summarise(avg_temp = mean(Temp))`: calculates one
+    summary value, the average temperature.
 
 ## Creating a New Column
 
 Use `mutate()` to create a new column or modify an existing column.
 
-For example, we can create a temperature category.
+For example, we can create a new temperature category named
+`Temp_Category` where the temperature is categorized as High if the
+temperature is greater than 80 and Moderate otherwise.
 
-```{r mutate-temp-category, exercise=TRUE}
+```{r mutate-temp-category, exercise=TRUE, exercise.setup="import-airquality-setup"}
 df2 <- df %>%
   mutate(Temp_Category = ifelse(Temp > 80, "High", "Moderate"))
 
 head(df2)
 ```
 
-## Contingency Table
+## Contingency Table 1
 
 A contingency table shows counts for combinations of categorical
 variables.
 
-First, we create a categorized ozone variable. Then we count the number
-of days in each combination of `Month` and `Ozone_Level`.
+First, we create a categorized ozone variable. It is `High` if the ozone
+level is greater than 42 and `Low` otherwise.
 
-```{r contingency-table-ozone, exercise=TRUE}
-df <- df %>%
-  mutate(Ozone_Level = ifelse(Ozone > median(Ozone, na.rm = TRUE),
+```{r contingency-table-ozone, exercise=TRUE, exercise.setup="import-airquality-setup"}
+  df %>%
+  mutate(Ozone_Level = ifelse(Ozone > 42,
                               "High", "Low"))
 
+```
+
+Then we count the number of days in each combination of `Month` and
+`Ozone_Level`.
+
+```{r contingency-table-ozone2, exercise=TRUE, exercise.setup="import-airquality-setup"}
+
+  df %>%
+  mutate(Ozone_Level = ifelse(Ozone > 42,
+                              "High", "Low"))%>%
+  group_by(Month, Ozone_Level) 
+
+```
+
+After that, we create a new count variable.
+
+```{r contingency-table-ozone3, exercise=TRUE, exercise.setup="import-airquality-setup"}
+
+  df %>%
+  mutate(Ozone_Level = ifelse(Ozone > 42,
+                              "High", "Low"))%>%
+  group_by(Month, Ozone_Level) %>%
+  summarise(Count = n())
+
+```
+
+Now we can use the `Count` column as the entries in the table by calling
+`pivot_wider()`.
+
+```{r contingency-table-ozone4, exercise=TRUE, exercise.setup="import-airquality-setup"}
+
 contingency_table <- df %>%
+  mutate(Ozone_Level = ifelse(Ozone > 42,
+                              "High", "Low"))%>%
   group_by(Month, Ozone_Level) %>%
   summarise(Count = n()) %>%
   pivot_wider(names_from = Ozone_Level, values_from = Count)
 
-print(contingency_table)
+contingency_table
+
 ```
 
-## Contingency Table with a Categorized Variable
+## Contingency Table 2
 
-We can also categorize `Solar.R`:
+Next, let's create a categorized version of `Solar.R` with three
+categories.
 
 ```         
 Solar.R <= 115       : Low
 115 < Solar.R <= 185 : Medium
-258 < Solar.R        : High
+185 < Solar.R        : High
 ```
 
-```{r contingency-table-solar, exercise=TRUE}
-contingency_table2 <- df %>%
+```{r contingency-table-solar-setup, include=FALSE}
+df4 <- df %>%
+  mutate(Ozone_Level = ifelse(Ozone > median(Ozone),
+                              "High", "Low"))
+```
+
+First, create a categorical ozone variable named `Ozone_Level`.
+
+```{r contingency-table-solar, exercise=TRUE, exercise.setup="contingency-table-solar-setup"}
+
+df4 <- df %>%
+  mutate(Ozone_Level = ifelse(Ozone > median(Ozone),
+                              "High", "Low"))
+head(df4)
+```
+
+Using `df4`, we can create a new categorical variable based on
+`Solar.R`.
+
+```{r contingency-table-solar2, exercise=TRUE, exercise.setup="contingency-table-solar-setup"}
+df4 %>%
+  mutate(solar_cat = case_when(
+    Solar.R <= 115 ~ "Low",
+    Solar.R > 115 & Solar.R <= 185 ~ "Medium",
+    Solar.R > 185 ~ "High"
+  )) 
+```
+
+Then, using `solar_cat` and `Ozone_Level`, we can create a count
+variable with the `n()` function.
+
+```{r contingency-table-solar3, exercise=TRUE, exercise.setup="contingency-table-solar-setup"}
+df4 %>%
+  mutate(solar_cat = case_when(
+    Solar.R <= 115 ~ "Low",
+    Solar.R > 115 & Solar.R <= 185 ~ "Medium",
+    Solar.R > 258 ~ "High"
+  )) %>%
+  group_by(solar_cat, Ozone_Level) %>%
+  summarise(Count = n()) 
+
+```
+
+Finally, use `pivot_wider()` to create a contingency table.
+
+```{r contingency-table-solar4, exercise=TRUE, exercise.setup="contingency-table-solar-setup"}
+contingency_table2 <- df4 %>%
   mutate(solar_cat = case_when(
     Solar.R <= 115 ~ "Low",
     Solar.R > 115 & Solar.R <= 185 ~ "Medium",
@@ -373,15 +513,6 @@ contingency_table2 <- df %>%
 print(contingency_table2)
 ```
 
-## Interpretation Check
-
-Look at the contingency-table examples above. In one or two sentences,
-describe one pattern you see and one thing we should be careful not to
-claim from these summaries alone.
-
-```{r contingency-interpretation, exercise=TRUE}
-
-```
 
 ## Your Turn 1
 
@@ -390,16 +521,20 @@ claim from these summaries alone.
 In the air quality data, create a new column named `Temp_C` from `Temp`.
 Use this formula:
 
-$$
-C = (F - 32) \times \frac{5}{9}
-$$
+$$C = (F - 32) \times \frac{5}{9}$$
 
 ```{r ex-temp-c, exercise=TRUE}
-df <- read.csv("airquality.csv")
+df <- datasets::airquality
+df <- df |> drop_na()
+
+
 ```
 
 ```{r ex-temp-c-hint-1}
 # Use mutate() to create Temp_C.
+```
+
+```{r ex-temp-c-hint-2}
 # The right side should be the Celsius formula:
 # (Temp - 32) * 5 / 9
 ```
@@ -407,7 +542,15 @@ df <- read.csv("airquality.csv")
 ```{r, context="server", echo=FALSE}
 timed_solution(
   "ex_temp_c_solution_code",
-  "df <- read.csv(\"airquality.csv\")\n\ndf_new1 <- df %>%\n  mutate(Temp_C = (Temp - 32) * 5 / 9)\n\ndf_new1"
+  r"(
+df <- datasets::airquality
+df <- df |> drop_na()
+
+df_new1 <- df %>%
+  mutate(Temp_C = (Temp - 32) * 5 / 9)
+
+print(df_new1)
+)"
 )
 ```
 
@@ -415,32 +558,6 @@ timed_solution(
 uiOutput("ex_temp_c_solution_code")
 ```
 
-## Filtering Out Missing Values
-
-Some variables contain missing values, shown as `NA`.
-
-```{r show-missing-values, exercise=TRUE}
-head(df)
-```
-
-To remove rows where a specific column is missing, combine `filter()`
-with `!is.na()`.
-
-```{r filter-missing-ozone-solar, exercise=TRUE}
-filtered_df <- df %>%
-  filter(!is.na(Ozone), !is.na(Solar.R))
-
-print(filtered_df[1:10, ])
-```
-
-To remove rows that have missing values in any column, use `drop_na()`.
-
-```{r drop-na-example, exercise=TRUE}
-df_clean <- df %>%
-  drop_na()
-
-head(df_clean)
-```
 
 ## Your Turn 2
 
@@ -465,43 +582,89 @@ Low: less than or equal to the median ozone level
 High: greater than the median ozone level
 ```
 
-### Step 1: Exclude Missing Values
-
-```{r ex-clean-data, exercise=TRUE}
-df <- read.csv("airquality.csv")
-```
-
-### Step 2: Create an Ozone Category
+### Step 1: Create an Ozone Category
 
 ```{r ex-ozone-category, exercise=TRUE}
+df 
+  
 ```
 
-### Step 3: Create a Wind Category
+```{r ex-ozone-category-hint-1}
+# Start with creating new categorical variable `Ozone_cat` 
+```
+
+```{r ex-ozone-category-hint-2}
+# You can go back to `Contingency Table 1 section and come back here
+```
+
+```{r ex-ozone-category-hint-3}
+# To obtain the median, you can use median(Ozone)
+```
+
+### Step 2: Create a Wind Category
 
 ```{r ex-wind-category, exercise=TRUE}
 ```
 
-### Step 4: Make a Contingency Table
+```{r ex-wind-category-hint-1}
+# Start with creating new categorical variable `Wind_cat` 
+```
+
+```{r ex-wind-category-hint-2}
+# You can go back to `Contingency Table 2 section and come back here
+```
+
+```{r ex-wind-category-hint-3}
+# For more than 2 categories, you can use case_when() within mutate() 
+```
+
+### Step 3: Make a Contingency Table
 
 ```{r ex-wind-ozone-table, exercise=TRUE}
 ```
 
-```{r ex-wind-ozone-hint-1}
-# Start with drop_na(), then use mutate() and case_when().
-df_clean <- df %>% drop_na()
+```{r ex-wind-ozone-table-hint-1}
+# Use group_by() and pivot_wider()
 ```
+
 
 ```{r, context="server", echo=FALSE}
 timed_solution(
   "ex_wind_ozone_solution_code",
-  "df <- read.csv(\"airquality.csv\")\n\ndf_clean <- df %>%\n  drop_na()\n\ndf_categorized <- df_clean %>%\n  mutate(Ozone_cat = case_when(\n    Ozone <= median(Ozone) ~ \"Low\",\n    Ozone > median(Ozone) ~ \"High\"\n  ))\n\ndf_categorized2 <- df_categorized %>%\n  mutate(Wind_cat = case_when(\n    Wind <= 1 ~ \"Calm\",\n    Wind > 1 & Wind <= 4 ~ \"Light Air\",\n    Wind > 4 & Wind <= 7 ~ \"Light Breeze\",\n    Wind > 7 & Wind <= 12 ~ \"Gentle Breeze\",\n    Wind > 12 & Wind <= 18 ~ \"Moderate Breeze\",\n    Wind > 18 & Wind <= 24 ~ \"Fresh Breeze\",\n    Wind > 24 ~ \"Strong Breeze\"\n  ))\n\nmy_contingency_tbl <- df_categorized2 %>%\n  group_by(Ozone_cat, Wind_cat) %>%\n  summarise(Count = n()) %>%\n  pivot_wider(names_from = Wind_cat, values_from = Count)\n\nmy_contingency_tbl"
+  r"(
+  #Step 1
+df_categorized <- df %>%
+  mutate(Ozone_cat = case_when(
+    Ozone <= median(Ozone) ~ "Low",
+    Ozone > median(Ozone) ~ "High"
+  ))
+
+ #Step 2
+df_categorized2 <- df_categorized %>%
+  mutate(Wind_cat = case_when(
+    Wind <= 1 ~ "Calm",
+    Wind > 1 & Wind <= 4 ~ "Light Air",
+    Wind > 4 & Wind <= 7 ~ "Light Breeze",
+    Wind > 7 & Wind <= 12 ~ "Gentle Breeze",
+    Wind > 12 & Wind <= 18 ~ "Moderate Breeze",
+    Wind > 18 & Wind <= 24 ~ "Fresh Breeze",
+    Wind > 24 ~ "Strong Breeze"
+  ))
+
+ #Step 3
+my_contingency_tbl <- df_categorized2 %>%
+  group_by(Ozone_cat, Wind_cat) %>%
+  summarise(Count = n()) %>%
+  pivot_wider(names_from = Wind_cat, values_from = Count)
+
+my_contingency_tbl
+)"
 )
 ```
 
 ```{r ex-wind-ozone-solution-ui, echo=FALSE}
 uiOutput("ex_wind_ozone_solution_code")
 ```
-
 
 ## Submit
 
