@@ -106,13 +106,18 @@ Change this date and time when you want all timed solutions in that
 lesson to become visible. The helper uses `America/New_York` by default.
 
 Add the solution using `timed_solution()` in a server-context chunk,
-then display it with a matching `uiOutput()` chunk.
+then display it with a matching `uiOutput()` chunk. For multi-line
+solutions, use an R raw string with `r"(...)"` so the code can be typed
+on separate lines without writing `\n`.
 
 ````markdown
 ```{r, context="server", echo=FALSE}
 timed_solution(
   "ex1_solution_code",
-  "number <- 655\nprint(number)"
+  r"(
+number <- 655
+print(number)
+)"
 )
 ```
 
@@ -125,9 +130,15 @@ Important details:
 
 - The output id must match exactly in both places:
   `ex1_solution_code`.
-- Use `\n` inside the solution string to create a new line.
+- Use `r"(...)"` for multi-line solution code.
 - Use a unique label for the UI chunk, usually ending in
   `-solution-ui`.
+
+For a short one-line solution, a regular quoted string is still fine:
+
+```r
+timed_solution("ex1_solution_code", "number <- 655")
+```
 
 ### 5. How to Prepare Variables Without Showing Them to Students
 
